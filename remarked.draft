@@ -1,0 +1,3 @@
+name=remarked
+desc=Note taking app to replace Xochitl
+call=/opt/bin/remarked
