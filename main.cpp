@@ -611,8 +611,8 @@ public:
 	        		px = -2;
 	            gr.remove(e.x,e.y+gr.y_scroll-y,eraser_width*8);
 	            erased = true;
-	        } else if (px >= 0 || lensq(e.x-px,e.y-py) > min(16,(width/2)*(width/2))){
-						if (tool==DRAW && px != -1){
+	        } else if (px < 0 || lensq(e.x-px,e.y-py) > min(16,(width/2)*(width/2))){
+						if (tool==DRAW && px >= 0){
                stroke st = stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0};
 	             gr.add(st);
 	             st.draw(fb,gr.y_scroll,y);
