@@ -1,1 +1,5 @@
+<<<<<<< HEAD
 ./*
+=======
+*.o
+>>>>>>> 1d37eb8 (Switch to using spaces and fix .gitignore's)
