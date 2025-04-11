@@ -5,18 +5,26 @@
 #include "sqlite3.h"
 #include <cstdio>
 
+
+inline int my_abs(int x){
+  return x<0?-x:x;
+}
+
+
 struct stroke{
   int ax,ay,bx,by;
   char width, color, type, etc;
 
-  void undraw(framebuffer::FB* fb,int y_scroll,int y){
-    if (ay < y_scroll || by < y_scroll) return;
-    fb->draw_line_circle(ax,y+ay-y_scroll,bx,y+by-y_scroll,width,WHITE);
+  stroke& undraw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
+    if (ay+off_y < y_scroll || by+off_y < y_scroll) return *this;
+    fb->draw_line_circle(ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+    return *this;
   }
   
-  void draw(framebuffer::FB* fb,int y_scroll,int y){
-    if (ay < y_scroll || by < y_scroll) return;
-    fb->draw_line_circle(ax,y+ay-y_scroll,bx,y+by-y_scroll,width,color::SCALE_16[(int)color]);
+  stroke& draw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
+    if (ay+off_y < y_scroll || by+off_y < y_scroll) return *this;
+    fb->draw_line_circle(ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+    return *this;
   }
 };
 
@@ -163,14 +171,14 @@ struct grid{
   sqlite3_stmt* shift_s, *page_s, *shift_l, *page_l;
 
   void move(std::string from, int from_page, std::string to, int to_page) {
-    sql_run(shift_s,"sii",to.c_str(),to_page,1);
-    sql_run(shift_l,"sii",to.c_str(),to_page,1);
+    sql_run(shift_s,"sii",to.c_str(),my_abs(to_page),1);
+    sql_run(shift_l,"sii",to.c_str(),my_abs(to_page),1);
 
-    sql_run(page_s,"sisi",from.c_str(),from_page,to.c_str(),to_page);
-    sql_run(page_l,"sisi",from.c_str(),from_page,to.c_str(),to_page);
+    sql_run(page_s,"sisi",from.c_str(),my_abs(from_page),to.c_str(),my_abs(to_page));
+    sql_run(page_l,"sisi",from.c_str(),my_abs(from_page),to.c_str(),my_abs(to_page));
 
-    sql_run(shift_s,"sii",from.c_str(),from_page+1,-1);
-    sql_run(shift_l,"sii",from.c_str(),from_page+1,-1);
+    sql_run(shift_s,"sii",from.c_str(),my_abs(from_page)+1,-1);
+    sql_run(shift_l,"sii",from.c_str(),my_abs(from_page)+1,-1);
   }
   
   void open(){
@@ -204,7 +212,7 @@ struct grid{
       error_msg(fb,(const char*)sqlite3_errmsg(db));
     if (sqlite3_prepare_v2(db,setpage_link_str,-1,&page_l,NULL))
       error_msg(fb,(const char*)sqlite3_errmsg(db));
-    load(current_file,current_page);
+    load(current_file,my_abs(current_page));
   }
 
   void close(){
@@ -237,14 +245,14 @@ struct grid{
     if (!db) return;
     if (loaded){
       if (edited){
-        sql_run(clear_s,"si",current_file.c_str(),current_page);
+        sql_run(clear_s,"si",current_file.c_str(),my_abs(current_page));
         
         sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
         int s = (int)rows.size();
         for (int j = 0 ; j < s ; j++)
           for (int i = 0 ; i < 16 ; i++)
             for (stroke& k : rows[j].vect[i])
-              sql_run(write_s,"siiiiiiiii",current_file.c_str(),current_page,k.ax,k.ay,k.bx,k.by,k.width,k.color,k.type,k.etc); 
+              sql_run(write_s,"siiiiiiiii",current_file.c_str(),my_abs(current_page),k.ax,k.ay,k.bx,k.by,k.width,k.color,k.type,k.etc); 
         sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
         
         edited = false;
@@ -257,7 +265,7 @@ struct grid{
         sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
         for (int j = 0 ; j < s ; j++)
           for (file_link& l : rows[j].links)
-            sql_run(write_l,"sisiii",current_file.c_str(),current_page,l.file.c_str(),0,l.x,l.y);
+            sql_run(write_l,"sisiii",current_file.c_str(),my_abs(current_page),l.file.c_str(),0,l.x,l.y);
         sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
       }
       
@@ -274,7 +282,7 @@ struct grid{
 
     
 
-    sql_bind(read_s,"si",file.c_str(),page);
+    sql_bind(read_s,"si",file.c_str(),my_abs(page));
     int t = 0;
     while ((t=sqlite3_step(read_s)) != SQLITE_DONE){
       if (t == SQLITE_ROW) {
@@ -294,7 +302,7 @@ struct grid{
     }
 
 
-    sql_bind(read_l,"si",file.c_str(),page);
+    sql_bind(read_l,"si",file.c_str(),my_abs(page));
     t = 0;
     while ((t=sqlite3_step(read_l)) != SQLITE_DONE){
       if (t == SQLITE_BUSY) continue;
@@ -411,23 +419,54 @@ struct grid{
         
     edited = true;
   }
+  void redraw(int x,int y,int w,int h){
+    int end_i = (x+w)/row_w;
+    int end_j = (y+h)/row_h;
+    for (int j = y/row_h;j<=end_j;j++)
+      for (int i = x/row_w;i<=end_i;i++)
+        if (j < (int)rows.size())
+          for (stroke& st : rows.at(j).vect[i]){
+            st.draw(fb,y_scroll,this->y);
+          }
+  }
+
+  void cut(int x,int y,int r,std::vector<stroke>& out){
+    int end_i = (x+r+1)/row_w;
+    int end_j = (y+r+1)/row_h;
+    for (int j = (y-r-1)/row_h;j<=end_j;j++)
+      for (int i = (x-r-1)/row_w;i<=end_i;i++)
+        if (j < (int)rows.size())
+          for (int k = rows[j].vect[i].size()-1 ; k>= 0; k--){
+            stroke& st = rows.at(j).vect[i].at(k);
+            if (lensq(st.ax-x,st.ay-y) <= r*r) {
+              out.push_back(st);
+              st.undraw(fb,y_scroll,this->y);
+              rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
+            }
+          }
+        
+    edited = true;
+  }
+  
 };
 
-inline int my_abs(int x){
-  return x<0?-x:x;
-}
 
+const int MOVE_SEL = -20;
+const int UNDO_SEL = -19;
+const int LINK = -3;
+const int REM_LINK = -2;
+const int NUL_ST = -1;
+
+const int DRAW = 0;
+const int ERASER = 1;
+const int SELECT = 2;
+const int NUM_TOOLS = 3;
 
 
 
 class NoteBook: public ui::Widget{
 public:
-    const int DRAW = 0;
-    const int ERASER = 1;
-    const int SELECT = 2;
-    const int LINK = 3;
-    const int REM_LINK = 4;
-    const int NUM_TOOLS = 3; // I want LINK and REM_LINK in their own buttons
+     // I want LINK and REM_LINK in their own buttons
     int px = -1,py = -1,tool = DRAW,prev_tool,block_touch = 0;
     char width = 2;
     char eraser_width = 3;
@@ -459,16 +498,35 @@ public:
       render();
     }
 
+    std::vector<stroke> selection;
+    int sel_x=-1,sel_y=-1,sel_w=-1,sel_h=-1;
+    bool no_select = false;
+
+    void unselect() {
+      if (sel_x >= 0) {
+        for (stroke& s : selection) {
+          s.ax += sel_x;
+          s.bx += sel_x;
+          s.ay += sel_y;
+          s.by += sel_y;
+          gr.add(s);
+        }
+        sel_x = -1;
+        selection.clear();        
+      }
+    }
+    
     void load(std::string file = "Home",int page = 0){
+      unselect();
       pagenum->undraw();
-      pagenum->text = file+":"+std::to_string(page);
+      pagenum->text = file+":"+std::to_string(my_abs(page)+1);
       pagenum->dirty = 1;
       gr.load(file,page);
     }
 
     
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
-        pagenum = new ui::Button(w-128,0,128,y,"Home:0");
+        pagenum = new ui::Button(w-128,0,128,y,"Home:1");
 
         pagenum->mouse.click += [this] (input::SynMotionEvent&){
           load();
@@ -490,10 +548,10 @@ public:
             int y = e.y - drag_y;
             if (my_abs(x) > my_abs(y)*2 && my_abs(x) > this->h/8){
               undraw();
-              if (x > 0 && gr.current_page > 0){
+              if (x > 0 && gr.current_page > -998){
                 load(gr.current_file,gr.current_page-1);
               }
-              if (x < 0 && gr.current_page < 999) {
+              if (x < 0 && gr.current_page < 998) {
                 load(gr.current_file,gr.current_page+1);
               }
 
@@ -522,69 +580,198 @@ public:
 
         
     }
+
+    
+
+    void set_sel_bounds() {
+      int xmax = 0, ymax = 0;
+      
+      if (!selection.size()) {sel_x = -1;return;}
+
+      for (stroke& s : selection) {
+        if (sel_x == -1 ) {
+          sel_x = min(s.ax,s.bx);
+          sel_y = min(s.ay,s.by);
+          xmax = max(s.ax,s.bx);
+          ymax = max(s.ay,s.by);
+        } else {
+          sel_x = min(min(s.ax,sel_x),s.bx);
+          sel_y = min(min(s.ay,sel_y),s.by);
+          xmax = max(max(s.ax,xmax),s.bx);
+          ymax = max(max(s.ay,ymax),s.by);
+        }
+      }
+       
+      sel_w = xmax - sel_x + 4;
+      sel_h = ymax - sel_y + 4;
+      sel_x -= 2;
+      sel_y -= 2;
+      for (stroke& s : selection) {
+        s.ax = s.ax - sel_x;
+        s.ay = s.ay - sel_y; 
+        s.bx = s.bx - sel_x;
+        s.by = s.by - sel_y;
+      }
+      sel_x = max(sel_x,0);
+      
+    }
+    
+    void draw_sel() {
+      if (sel_x >= 0){
+        for (stroke& s : selection) {
+          s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
+        }
+        fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
+
+        fb->dirty = 1;
+        fb->waveform_mode = WAVEFORM_MODE_DU4;
+        int marker = fb->perform_redraw(false);
+        fb->wait_for_redraw(marker);
+        dirty = 0;
+      }
+    }
+    void undraw_sel() {
+      fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
+
+      if (lines) {
+        int y_s = ((sel_y-1) / lines + 1) * lines;
+        for (int i = y_s ; i < sel_y + sel_h; i+=lines) {
+          fb->draw_line(sel_x,i-gr.y_scroll+y,sel_x+sel_w,i-gr.y_scroll+y,1,color::SCALE_16[8]);
+        }
+      }
+      gr.redraw(sel_x,sel_y,sel_w,sel_h);
+      
+    }
+
+    
+    
+    int state = 0;
+    void start_stroke(int tool,input::SynMotionEvent& e) {
+      px = py = -1;
+      state = tool;
+      switch (state) {
+        case DRAW:
+          gr.add(stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
+          break;
+        case ERASER:
+          break;
+        case SELECT:
+          if (sel_x >= 0 && e.x < sel_x+sel_w && e.x >= sel_x&& e.y+gr.y_scroll-y < sel_y+sel_w && e.y+gr.y_scroll-y >= sel_y){
+            state = MOVE_SEL;
+            break;
+          }
+          if (sel_x >= 0){
+            state = UNDO_SEL;
+            break;
+          }
+          unselect();
+          break;
+      }
+    }
+
+    void update_stroke(input::SynMotionEvent& e){
+      switch (state) {
+        case DRAW:
+          if (px < 0 || lensq(e.x-px,e.y-py) > min(16,(width/2)*(width/2))){
+            if (px >= 0)
+              gr.add(stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
+            px = e.x;
+            py = e.y;
+          }
+          break;
+        case ERASER:
+          px = -2;
+          gr.remove(e.x,e.y+gr.y_scroll-y,eraser_width*8);
+          break;
+        case SELECT:
+          gr.cut(e.x,e.y+gr.y_scroll-y,eraser_width*8,selection);
+          break;
+        case MOVE_SEL:
+          if (px < 0 || lensq(e.x-px,e.y-py) > 64){
+            if (px >= 0) {
+              undraw_sel();
+              sel_x += e.x-px;
+              sel_y += e.y-py;
+              draw_sel();
+            }
+            px = e.x;
+            py = e.y;
+          }
+          break;
+      }
+    }
+
+    void end_stroke(input::SynMotionEvent& e){
+      switch (state) {
+        case DRAW:
+          break;
+        case ERASER:
+          dirty = 1;
+          break;
+        case SELECT:
+          set_sel_bounds();
+          draw_sel();
+          state = NUL_ST;
+          break;
+        case UNDO_SEL:
+          unselect();
+          rerender();
+          state = NUL_ST;
+          break;
+        case MOVE_SEL:
+          state = NUL_ST;
+          break;
+        case LINK:
+          kb.set_text("");
+          kb.show();
+          
+          link_x = e.x;
+          link_y = e.y+gr.y_scroll-y;
+          ui::MainLoop::refresh();
+          tool = prev_tool;
+          state = NUL_ST;
+          break;
+        case REM_LINK:
+          gr.remove_link(e.x,e.y+gr.y_scroll-y);
+          dirty = 1;
+          tool = prev_tool;
+          state = NUL_ST;
+          break;
+      }
+    }
+
+    
     void on_mouse_enter(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
           px = py = -1;
-          if ((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1)) {
+          is_started = false;
+          if (e.left && e.left!=-1) {
             px = e.x;
             py = e.y;
-          }  
+          }
         }
     }
 
+    bool is_started = false;  
     void on_mouse_leave(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
+          end_stroke(e);
+          is_started = false;
           px = py = -1;
-          if (erased) {dirty = 1;erased=false;}  
         }
     }
 
     void on_mouse_up(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
+          end_stroke(e);
+          is_started = false;
           px = py = -1;
-          if (erased) {dirty = 1;erased=false;}  
-
-          if (click_start) {
-            click_start = false;
-            if (tool == LINK){
-              kb.set_text("");
-              kb.show();
-              
-              link_x = e.x;
-              link_y = e.y+gr.y_scroll-y;
-              ui::MainLoop::refresh();
-              tool = prev_tool;
-            }
-            if (tool == REM_LINK){
-              gr.remove_link(e.x,e.y+gr.y_scroll-y);
-              dirty = 1;
-              tool = prev_tool;
-            }
-          }
         }
-
-        
-    }
-    void on_mouse_down(input::SynMotionEvent& e){
-        if (input::is_wacom_event(e)){
-          px = py = -1;
-          if (tool == DRAW) { // this mess is for dots since I wanted to make sure that strokes would have a minimum size otherwise
-            stroke st = stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0};
-            gr.add(st); 
-          }
-          if (e.left && e.left!=-1) 
-            if (tool == LINK || tool == REM_LINK)
-              click_start = true;
-        }
-
-        
     }
 
     int link_x,link_y;
     ui::Keyboard kb;
     void on_mouse_click(input::SynMotionEvent& e){
-      
-
       if (input::is_touch_event(e)){
         file_link* l = gr.get_link(e.x,e.y+gr.y_scroll-y);
         if (l){
@@ -594,32 +781,25 @@ public:
       }
     }
 
+    
     void on_mouse_move(input::SynMotionEvent& e){
-        // using if statements rather than ignore event, as ignore event seems to cause a bunch of writing problems, with it just ignoring a lot of strokes
-        // also I am using gestures and stuff so I can't ignore the touch events
         if (input::is_wacom_event(e)){ 
-          if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1)))
-            if (e.right && e.right!=-1){
+          if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1))){
+            if (e.right && e.right!=-1)
               drag_x = -1;
-              return;
-            }
-          drag_x = -1;
-          
-          
-          if ((e.eraser && e.eraser!=-1) || tool==ERASER){
-              px = -2;
-              gr.remove(e.x,e.y+gr.y_scroll-y,eraser_width*8);
-              erased = true;
-          } else if (px < 0 || lensq(e.x-px,e.y-py) > min(16,(width/2)*(width/2))){
-            if (tool==DRAW && px >= 0){
-               stroke st = stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0};
-               gr.add(st);
-               st.draw(fb,gr.y_scroll,y);
-            }
-          
-            px = e.x;
-            py = e.y;           
+            return;
           }
+          drag_x = -1;
+          if (!is_started) {
+            if (e.eraser && e.eraser!=-1)
+              start_stroke(ERASER,e);
+            else
+              start_stroke(tool,e);
+            is_started = true;
+            return;
+          }
+          
+          update_stroke(e);
         }
     }
 
@@ -671,8 +851,8 @@ class ToolDropdown : public ui::TextDropdown{
   }
   const int widths[6] = { 2,4,6,10,17,27 };
   void on_select(int i){
-    if (i >= NB->NUM_TOOLS) {
-      NB->width = widths[i-NB->NUM_TOOLS];
+    if (i >= NUM_TOOLS) {
+      NB->width = widths[i-NUM_TOOLS];
       return;
     }
     NB->tool = i;
@@ -711,9 +891,9 @@ int main(int,char**){
     {
       ui::Button* b = new ui::Button(128,0,32,tool_height,"+");
       b->mouse.click += [=] (input::SynMotionEvent&){
-        if (N->tool != N->LINK && N->tool != N->REM_LINK)
+        if (N->tool != LINK && N->tool != REM_LINK)
           N->prev_tool = N->tool;
-        N->tool = N->LINK;
+        N->tool = LINK;
         T->text = "+Link";
         T->dirty = 1;
       }; 
@@ -722,9 +902,9 @@ int main(int,char**){
     {
       ui::Button* b = new ui::Button(160,0,32,tool_height,"-");
       b->mouse.click += [=] (input::SynMotionEvent&){
-        if (N->tool != N->LINK && N->tool != N->REM_LINK)
+        if (N->tool != LINK && N->tool != REM_LINK)
           N->prev_tool = N->tool; 
-        N->tool = N->REM_LINK;
+        N->tool = REM_LINK;
         T->text = "-Link";
         T->dirty = 1;
       }; 
