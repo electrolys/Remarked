@@ -781,6 +781,10 @@ public:
       }
     }
 
+    void on_mouse_down(input::SynMotionEvent& e) {
+      is_started = false;
+      px = py = -1;
+    }
     
     void on_mouse_move(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){ 
