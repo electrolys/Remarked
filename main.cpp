@@ -422,12 +422,16 @@ struct grid{
   void redraw(int x,int y,int w,int h){
     int end_i = (x+w)/row_w;
     int end_j = (y+h)/row_h;
-    for (int j = y/row_h;j<=end_j;j++)
+    for (int j = y/row_h;j<=end_j;j++){
       for (int i = x/row_w;i<=end_i;i++)
         if (j < (int)rows.size())
           for (stroke& st : rows.at(j).vect[i]){
             st.draw(fb,y_scroll,this->y);
           }
+      for (file_link& l : rows[j].links)
+        if (l.y > y_scroll + link_size)
+          fb->draw_text(l.x,l.y-y_scroll+this->y-link_size,l.file,link_size);
+    }
   }
 
   void cut(int x,int y,int r,std::vector<stroke>& out){
@@ -618,29 +622,20 @@ public:
     
     void draw_sel() {
       if (sel_x >= 0){
-        for (stroke& s : selection) {
+        for (stroke& s : selection)
           s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
-        }
         fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
-
-        fb->dirty = 1;
-        fb->waveform_mode = WAVEFORM_MODE_DU4;
-        int marker = fb->perform_redraw(false);
-        fb->wait_for_redraw(marker);
         dirty = 0;
       }
     }
     void undraw_sel() {
       fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
-
       if (lines) {
         int y_s = ((sel_y-1) / lines + 1) * lines;
-        for (int i = y_s ; i < sel_y + sel_h; i+=lines) {
+        for (int i = y_s ; i < sel_y + sel_h; i+=lines)
           fb->draw_line(sel_x,i-gr.y_scroll+y,sel_x+sel_w,i-gr.y_scroll+y,1,color::SCALE_16[8]);
-        }
       }
       gr.redraw(sel_x,sel_y,sel_w,sel_h);
-      
     }
 
     
