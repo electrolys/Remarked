@@ -750,7 +750,7 @@ public:
     bool is_started = false;  
     void on_mouse_leave(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
-          end_stroke(e);
+          if (is_started) end_stroke(e);
           is_started = false;
           px = py = -1;
         }
@@ -758,7 +758,7 @@ public:
 
     void on_mouse_up(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
-          end_stroke(e);
+          if (is_started) end_stroke(e);
           is_started = false;
           px = py = -1;
         }
@@ -777,15 +777,23 @@ public:
     }
 
     void on_mouse_down(input::SynMotionEvent& e) {
-      is_started = false;
-      px = py = -1;
+      if ((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1)){
+        is_started = false;
+        px = py = -1;
+      }
     }
     
     void on_mouse_move(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){ 
           if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1))){
-            if (e.right && e.right!=-1)
+            if (e.right && e.right!=-1){
+              if (is_started){
+                end_stroke(e);
+                is_started = false;
+                px = py = -1;
+              }
               drag_x = -1;
+            }
             return;
           }
           drag_x = -1;
