@@ -693,10 +693,14 @@ public:
             py = e.y;
           }
           break;
+        case LINK:
+        case REM_LINK:
+          px = e.x;
+          py = e.y;
       }
     }
 
-    void end_stroke(input::SynMotionEvent& e){
+    void end_stroke(){
       switch (state) {
         case DRAW:
           break;
@@ -720,14 +724,14 @@ public:
           kb.set_text("");
           kb.show();
           
-          link_x = e.x;
-          link_y = e.y+gr.y_scroll-y;
+          link_x = px;
+          link_y = py+gr.y_scroll-y;
           ui::MainLoop::refresh();
           tool = prev_tool;
           state = NUL_ST;
           break;
         case REM_LINK:
-          gr.remove_link(e.x,e.y+gr.y_scroll-y);
+          gr.remove_link(px,py+gr.y_scroll-y);
           dirty = 1;
           tool = prev_tool;
           state = NUL_ST;
@@ -750,7 +754,7 @@ public:
     bool is_started = false;  
     void on_mouse_leave(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
-          if (is_started) end_stroke(e);
+          if (is_started) end_stroke();
           is_started = false;
           px = py = -1;
         }
@@ -758,7 +762,7 @@ public:
 
     void on_mouse_up(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){
-          if (is_started) end_stroke(e);
+          if (is_started) end_stroke();
           is_started = false;
           px = py = -1;
         }
@@ -788,7 +792,7 @@ public:
           if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1))){
             if (e.right && e.right!=-1){
               if (is_started){
-                end_stroke(e);
+                end_stroke();
                 is_started = false;
                 px = py = -1;
               }
