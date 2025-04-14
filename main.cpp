@@ -11,19 +11,148 @@ inline int my_abs(int x){
 }
 
 
+inline void my_draw_rect_fast(framebuffer::FB* fb, int o_x, int o_y, int w, int h, int color, float dither=1.0) {
+  fb->dirty = 1;
+
+  if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
+    return;
+
+  for (int j = 0; j < h; j++) {
+    if (j+o_y >= fb->height)
+      break;
+
+    for (int i = 0; i < w; i++) {
+      if (i+o_x >= fb->width)
+        break;
+      fb->do_dithering(fb->fbmem, i+o_x, j+o_y, color, dither);
+    }
+  }
+}
+
+inline void my_draw_horiz_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color, float dither=1.0) {
+  fb->dirty = 1;
+
+  if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
+    return;
+
+  for (int i = 0; i < l; i++) {
+    if (i+o_x >= fb->width)
+      break;
+    fb->do_dithering(fb->fbmem, i+o_x, o_y, color, dither);
+  }
+  
+}
+
+inline void my_draw_vert_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color, float dither=1.0) {
+  fb->dirty = 1;
+
+  if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
+    return;
+
+  for (int i = 0; i < l; i++) {
+    if (i+o_y >= fb->height)
+      break;
+    fb->do_dithering(fb->fbmem, o_x, i+o_y, color, dither);
+  }
+  
+}
+
+inline void my_draw_circle_fast(framebuffer::FB* fb, int o_x, int o_y, int r, int color, float dither=1.0) {
+  fb->dirty = 1;
+
+  if (o_y-r >= fb->height || o_x-r >= fb->width || o_y+r < 0 || o_x+r < 0)
+    return;
+
+  for (int j = max(-r,-o_y); j <= r; j++) {
+    if (j+o_y >= fb->height)
+      break;
+
+    for (int i = max(-r,-o_x); i <= r; i++) {
+      if (i+o_x >= fb->width)
+        break;
+      if (i*i+j*j <= r*r)
+        fb->do_dithering(fb->fbmem, i+o_x, j+o_y, color, dither);
+    }
+  }
+}
+
+void my_draw_line_circle(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width,int color){
+      fb->dirty = 1;
+      int dx =  abs(x1-x0);
+      int sx = x0<x1 ? 1 : -1;
+      int dy = -abs(y1-y0);
+      int sy = y0<y1 ? 1 : -1;
+      int err = dx+dy;
+      fb->update_dirty(fb->dirty_area, min(x0,x1)-width/2-1, min(y0,y1)-width/2-1);
+      fb->update_dirty(fb->dirty_area, max(x0,x1)+width/2+1, max(y0,y1)+width/2+1);
+      my_draw_circle_fast(fb,x0, y0, width / 2, color);
+
+      while (true){
+        my_draw_vert_fast(fb,x0, y0-width/2, width, color);
+        my_draw_horiz_fast(fb,x0-width/2, y0, width, color);
+        if (x0==x1 && y0==y1) {
+          my_draw_circle_fast(fb,x0, y0, width / 2, color);
+          break;
+        }
+        int e2 = 2*err;
+        if (e2 >= dy) {
+          err += dy;
+          x0 += sx;
+        }
+        if (e2 <= dx){
+          err += dx;
+          y0 += sy;
+        }
+      }
+}
+
+void my_draw_line_vert(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width,int color){
+      fb->dirty = 1;
+      int dx =  abs(x1-x0);
+      int sx = x0<x1 ? 1 : -1;
+      int dy = -abs(y1-y0);
+      int sy = y0<y1 ? 1 : -1;
+      int err = dx+dy;
+      
+      fb->update_dirty(fb->dirty_area, min(x0,x1)-1, min(y0,y1)-width/2-1);
+      fb->update_dirty(fb->dirty_area, max(x0,x1)+1, max(y0,y1)+width/2+1);
+      
+      // fb->draw_circle(x0, y0, width/2, 1, color,true);
+      while (true){
+        // fb->_draw_rect_fast(x0-width/2, y0, width, 1, color);
+        my_draw_vert_fast(fb,x0, y0-width/2, width, color);
+        
+        if (x0==x1 && y0==y1) {
+          // fb->draw_circle(x0, y0, width/2, 1, color,true);
+          break;
+        }
+        int e2 = 2*err;
+        if (e2 >= dy) {
+          err += dy;
+          x0 += sx;
+        }
+        if (e2 <= dx){
+          err += dx;
+          y0 += sy;
+        }
+      }
+}
+
+
+
 struct stroke{
   int ax,ay,bx,by;
   char width, color, type, etc;
 
   stroke& undraw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
-    if (ay+off_y < y_scroll || by+off_y < y_scroll) return *this;
-    fb->draw_line_circle(ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+    if (ay+off_y-width/2 < y_scroll || by+off_y-width/2 < y_scroll) return *this;
+    my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
     return *this;
   }
   
   stroke& draw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
     if (ay+off_y < y_scroll || by+off_y < y_scroll) return *this;
-    fb->draw_line_circle(ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+    my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
     return *this;
   }
 };
@@ -36,6 +165,9 @@ struct grid_row{
   std::vector<stroke> vect[16];
   std::vector<file_link> links;
 };
+
+
+
 
 
 const char* read_st_str = "select ax, ay, bx, by, size, color, type, etc from pen_strokes where file=? and page=?;";
@@ -152,6 +284,7 @@ void sql_run(sqlite3_stmt* stmt, const char* args, ...) {
   va_end(varg);
   while (sqlite3_step(stmt) != SQLITE_DONE){}//TODO error handling
 }
+
 
 
 struct grid{
@@ -595,15 +728,15 @@ public:
 
       for (stroke& s : selection) {
         if (sel_x == -1 ) {
-          sel_x = min(s.ax,s.bx);
-          sel_y = min(s.ay,s.by);
-          xmax = max(s.ax,s.bx);
-          ymax = max(s.ay,s.by);
+          sel_x = min(s.ax-s.width/2,s.bx-s.width/2);
+          sel_y = min(s.ay-s.width/2,s.by-s.width/2);
+          xmax = max(s.ax+s.width/2,s.bx+s.width/2);
+          ymax = max(s.ay+s.width/2,s.by+s.width/2);
         } else {
-          sel_x = min(min(s.ax,sel_x),s.bx);
-          sel_y = min(min(s.ay,sel_y),s.by);
-          xmax = max(max(s.ax,xmax),s.bx);
-          ymax = max(max(s.ay,ymax),s.by);
+          sel_x = min(min(s.ax-s.width/2,sel_x),s.bx-s.width/2);
+          sel_y = min(min(s.ay-s.width/2,sel_y),s.by-s.width/2);
+          xmax = max(max(s.ax+s.width/2,xmax),s.bx+s.width/2);
+          ymax = max(max(s.ay+s.width/2,ymax),s.by+s.width/2);
         }
       }
        
@@ -627,6 +760,9 @@ public:
           s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
         fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
         dirty = 0;
+
+        // int marker = fb->perform_redraw(false);
+        // fb->wait_for_redraw(marker);
       }
     }
     void undraw_sel() {
@@ -654,7 +790,7 @@ public:
         case ERASER:
           break;
         case SELECT:
-          if (sel_x >= 0 && e.x < sel_x+sel_w && e.x >= sel_x&& e.y+gr.y_scroll-y < sel_y+sel_w && e.y+gr.y_scroll-y >= sel_y){
+          if (sel_x >= 0 && e.x < sel_x+sel_w && e.x >= sel_x && e.y+gr.y_scroll-y < sel_y+sel_h && e.y+gr.y_scroll-y >= sel_y){
             state = MOVE_SEL;
             break;
           }
@@ -682,7 +818,7 @@ public:
     void update_stroke(input::SynMotionEvent& e){
       switch (state) {
         case DRAW:
-          if (px < 0 || lensq(e.x-px,e.y-py) > min(16,(width/2)*(width/2))){
+          if (px < 0 || lensq(e.x-px,e.y-py) > max(min(16,(width/3)*(width/3)),1)){
             if (px >= 0)
               gr.add(stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
             px = e.x;
