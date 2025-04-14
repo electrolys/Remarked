@@ -362,7 +362,7 @@ struct grid{
     for (int i = max(0,j-1); i <= min(j+1,rows.size()-1); i++){
       for (file_link& l : rows[i].links){
         if (x < l.x - 10 || x > l.x+l.w+10) continue;
-        if (y < l.y - link_size - 10 || y > l.y + 10) continue;
+        if (y < l.y - 10 || y > l.y + link_size + 10) continue;
         return &l;
       }
     }
@@ -373,10 +373,10 @@ struct grid{
     int j = y / row_h;
         
     for (int i = max(0,j-1); i <= min(j+1,rows.size()-1); i++){
-      for (int k = rows[i].links.size()-1; k >= 0; k--){
+      for (int k = 0; k < rows[i].links.size(); k++){
         auto& l = rows[i].links[k];
         if (x < l.x - 10 || x > l.x+l.w+10) continue;
-        if (y < l.y - link_size - 10 || y > l.y + 10) continue;
+        if (y < l.y - 10 || y > l.y + link_size + 10) continue;
         rows[i].links.erase(rows[i].links.begin()+k);
         linksedited = true;
         return;
@@ -399,7 +399,7 @@ struct grid{
           k.draw(fb,y_scroll,y);
       for (file_link& l : rows[j].links)
         if (l.y > y_scroll + link_size)
-          fb->draw_text(l.x,l.y-y_scroll+y-link_size,l.file,link_size);
+          fb->draw_text(l.x,l.y-y_scroll+y,l.file,link_size);
     }
   }
 
@@ -430,7 +430,7 @@ struct grid{
           }
       for (file_link& l : rows[j].links)
         if (l.y > y_scroll + link_size)
-          fb->draw_text(l.x,l.y-y_scroll+this->y-link_size,l.file,link_size);
+          fb->draw_text(l.x,l.y-y_scroll+this->y,l.file,link_size);
     }
   }
 
@@ -457,6 +457,7 @@ struct grid{
 
 const int MOVE_SEL = -20;
 const int UNDO_SEL = -19;
+const int LINK_SEL = -18;
 const int LINK = -3;
 const int REM_LINK = -2;
 const int NUL_ST = -1;
@@ -641,9 +642,11 @@ public:
     
     
     int state = 0;
+    std::string sel_name;
     void start_stroke(int tool,input::SynMotionEvent& e) {
       px = py = -1;
       state = tool;
+      file_link* l;
       switch (state) {
         case DRAW:
           gr.add(stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
@@ -657,6 +660,18 @@ public:
           }
           if (sel_x >= 0){
             state = UNDO_SEL;
+            break;
+          }
+          if ((l = gr.get_link(e.x,e.y+gr.y_scroll-y))) {
+            sel_x = l->x;
+            sel_y = l->y;
+            sel_w = l->w;
+            sel_h = link_size;
+            
+            sel_name = l->file;
+
+            gr.remove_link(e.x,e.y+gr.y_scroll-y);
+            state = LINK_SEL;
             break;
           }
           unselect();
@@ -682,12 +697,24 @@ public:
           gr.cut(e.x,e.y+gr.y_scroll-y,eraser_width*8,selection);
           break;
         case MOVE_SEL:
-          if (px < 0 || lensq(e.x-px,e.y-py) > 64){
+          if (px < 0 || lensq(e.x-px,e.y-py) > 32){
             if (px >= 0) {
               undraw_sel();
               sel_x += e.x-px;
               sel_y += e.y-py;
               draw_sel();
+            }
+            px = e.x;
+            py = e.y;
+          }
+          break;
+        case LINK_SEL:
+          if (px < 0 || lensq(e.x-px,e.y-py) > 32){
+            if (px >= 0) {
+              undraw_sel();            
+              sel_x += e.x-px;
+              sel_y += e.y-py;
+              fb->draw_text(sel_x,sel_y-gr.y_scroll+y,sel_name,link_size);
             }
             px = e.x;
             py = e.y;
@@ -717,15 +744,24 @@ public:
           rerender();
           state = NUL_ST;
           break;
+        
         case MOVE_SEL:
           state = NUL_ST;
+          break;
+        case LINK_SEL:
+          
+          gr.add_link(sel_x,sel_y,sel_name);
+          sel_name = "";
+          state = NUL_ST;
+          sel_x = -1;
+          rerender();
           break;
         case LINK:
           kb.set_text("");
           kb.show();
           
           link_x = px;
-          link_y = py+gr.y_scroll-y;
+          link_y = py+gr.y_scroll-y-link_size;
           ui::MainLoop::refresh();
           tool = prev_tool;
           state = NUL_ST;
@@ -777,13 +813,6 @@ public:
           load(l->file);
           rerender();
         }
-      }
-    }
-
-    void on_mouse_down(input::SynMotionEvent& e) {
-      if ((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1)){
-        is_started = false;
-        px = py = -1;
       }
     }
     
