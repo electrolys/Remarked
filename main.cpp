@@ -11,7 +11,7 @@ inline int my_abs(int x){
 }
 
 
-inline void my_draw_rect_fast(framebuffer::FB* fb, int o_x, int o_y, int w, int h, int color, float dither=1.0) {
+inline void my_draw_rect_fast(framebuffer::FB* fb, int o_x, int o_y, int w, int h, int color) {
   fb->dirty = 1;
 
   if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
@@ -24,12 +24,12 @@ inline void my_draw_rect_fast(framebuffer::FB* fb, int o_x, int o_y, int w, int 
     for (int i = 0; i < w; i++) {
       if (i+o_x >= fb->width)
         break;
-      fb->do_dithering(fb->fbmem, i+o_x, j+o_y, color, dither);
+      fb->_set_pixel(i+o_x, j+o_y, color);
     }
   }
 }
 
-inline void my_draw_horiz_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color, float dither=1.0) {
+inline void my_draw_horiz_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color) {
   fb->dirty = 1;
 
   if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
@@ -38,12 +38,12 @@ inline void my_draw_horiz_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int
   for (int i = 0; i < l; i++) {
     if (i+o_x >= fb->width)
       break;
-    fb->do_dithering(fb->fbmem, i+o_x, o_y, color, dither);
+    fb->_set_pixel(i+o_x, o_y, color);
   }
   
 }
 
-inline void my_draw_vert_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color, float dither=1.0) {
+inline void my_draw_vert_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int color) {
   fb->dirty = 1;
 
   if (o_y >= fb->height || o_x >= fb->width || o_y < 0 || o_x < 0)
@@ -52,12 +52,12 @@ inline void my_draw_vert_fast(framebuffer::FB* fb, int o_x, int o_y, int l, int 
   for (int i = 0; i < l; i++) {
     if (i+o_y >= fb->height)
       break;
-    fb->do_dithering(fb->fbmem, o_x, i+o_y, color, dither);
+    fb->_set_pixel(o_x, i+o_y, color);
   }
   
 }
 
-inline void my_draw_circle_fast(framebuffer::FB* fb, int o_x, int o_y, int r, int color, float dither=1.0) {
+inline void my_draw_circle_fast(framebuffer::FB* fb, int o_x, int o_y, int r, int color) {
   fb->dirty = 1;
 
   if (o_y-r >= fb->height || o_x-r >= fb->width || o_y+r < 0 || o_x+r < 0)
@@ -71,7 +71,7 @@ inline void my_draw_circle_fast(framebuffer::FB* fb, int o_x, int o_y, int r, in
       if (i+o_x >= fb->width)
         break;
       if (i*i+j*j <= r*r)
-        fb->do_dithering(fb->fbmem, i+o_x, j+o_y, color, dither);
+        fb->_set_pixel(i+o_x, j+o_y, color);
     }
   }
 }
