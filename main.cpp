@@ -581,35 +581,30 @@ struct grid{
               rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
             }
           }
-        
     edited = true;
   }
-  
 };
 
 
-const int MOVE_SEL = -20;
-const int UNDO_SEL = -19;
-const int LINK_SEL = -18;
-const int LINK = -3;
-const int REM_LINK = -2;
+const int MOVE_SEL = -4;
+const int UNDO_SEL = -3;
+const int LINK_SEL = -2;
 const int NUL_ST = -1;
 
 const int DRAW = 0;
 const int ERASER = 1;
 const int SELECT = 2;
-const int NUM_TOOLS = 3;
+const int LINK = 3;
+const int REM_LINK = 4;
 
-
+const int tool_height = 48;
 
 class NoteBook: public ui::Widget{
 public:
-     // I want LINK and REM_LINK in their own buttons
-    int px = -1,py = -1,tool = DRAW,prev_tool,block_touch = 0;
+    int px = -1,py = -1,tool = DRAW,block_touch = 0;
     char width = 2;
     char eraser_width = 3;
     int lines = 25*2;
-    // bool full_redraw;
     grid gr;
 
     ui::Button* pagenum;
@@ -692,7 +687,6 @@ public:
               if (x < 0 && gr.current_page < 998) {
                 load(gr.current_file,gr.current_page+1);
               }
-
               rerender();
             }
             
@@ -707,13 +701,8 @@ public:
 
         kb.events.done += [this](auto& e){
           this->dirty = 1;
-
           if (e.text.length() > 0)
           this->gr.add_link(this->link_x,this->link_y,e.text);
-          
-          //add link to link buffer if name is not empty TODO
-          
-          
         };
 
         
@@ -760,7 +749,6 @@ public:
           s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
         fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
         dirty = 0;
-
         // int marker = fb->perform_redraw(false);
         // fb->wait_for_redraw(marker);
       }
@@ -899,13 +887,11 @@ public:
           link_x = px;
           link_y = py+gr.y_scroll-y-link_size;
           ui::MainLoop::refresh();
-          tool = prev_tool;
           state = NUL_ST;
           break;
         case REM_LINK:
           gr.remove_link(px,py+gr.y_scroll-y);
           dirty = 1;
-          tool = prev_tool;
           state = NUL_ST;
           break;
       }
@@ -1003,6 +989,8 @@ public:
         
         fb->draw_line(0,y,w,y,1,BLACK);
 
+        fb->draw_rect(tool*32,tool_height,32,4,BLACK,true);
+
         fb->dirty = 1;
         fb->waveform_mode = WAVEFORM_MODE_GC16;
         int marker = fb->perform_redraw(true);
@@ -1013,31 +1001,16 @@ public:
 
 
 
-class ToolDropdown : public ui::TextDropdown{
-  public:
-  NoteBook* NB;
-  ToolDropdown(int x, int y, int w, int h, NoteBook* nb): ui::TextDropdown(x,y,w,h,"Tools"){
-    auto t = add_section("Tool");
-    t->add_options(std::vector<std::string>{"Write","Erase","Select"});
-    auto tt = add_section("Size");
-    tt->add_options(std::vector<std::string>{"Fine","Normal","Wide","Ex Wide","Fill","Ex Fill"});
-    NB = nb;
-    dir = DIRECTION::DOWN;
-    text = "Write";
-  }
-  const int widths[6] = { 2,4,6,10,17,27 };
-  void on_select(int i){
-    if (i >= NUM_TOOLS) {
-      NB->width = widths[i-NUM_TOOLS];
-      return;
-    }
-    NB->tool = i;
-  }
-};
 
-
-
-
+ui::Button* tool_button(NoteBook* N,int id,const char* ch) {
+  ui::Button* b = new ui::Button(id*32,0,32,tool_height,ch);
+  b->mouse.click += [N, id] (input::SynMotionEvent&){
+    N->fb->draw_rect(N->tool*32,tool_height,32,4,WHITE,true);
+    N->fb->draw_rect(id*32,tool_height,32,4,BLACK,true);
+    N->tool = id;
+  }; 
+  return b;
+}
 
 int main(int,char**){    
     auto scene = ui::make_scene();
@@ -1054,41 +1027,19 @@ int main(int,char**){
     int h = std::get<1>(s);
 
 
-    const int tool_height = 48;
+    
     NoteBook* N = new NoteBook(w,h-tool_height,tool_height);
     scene->add(N);
-
-    
-    
-    ToolDropdown* T = new ToolDropdown(0,0,128,tool_height,N);
-    scene->add(T);
     scene->add(N->pagenum);
 
+    scene->add(tool_button(N,DRAW,"W"));
+    scene->add(tool_button(N,ERASER,"E"));
+    scene->add(tool_button(N,SELECT,"S"));
+    scene->add(tool_button(N,LINK,"+"));
+    scene->add(tool_button(N,REM_LINK,"-"));
+   
     {
-      ui::Button* b = new ui::Button(128,0,32,tool_height,"+");
-      b->mouse.click += [=] (input::SynMotionEvent&){
-        if (N->tool != LINK && N->tool != REM_LINK)
-          N->prev_tool = N->tool;
-        N->tool = LINK;
-        T->text = "+Link";
-        T->dirty = 1;
-      }; 
-      scene->add(b);
-    }
-    {
-      ui::Button* b = new ui::Button(160,0,32,tool_height,"-");
-      b->mouse.click += [=] (input::SynMotionEvent&){
-        if (N->tool != LINK && N->tool != REM_LINK)
-          N->prev_tool = N->tool; 
-        N->tool = REM_LINK;
-        T->text = "-Link";
-        T->dirty = 1;
-      }; 
-      scene->add(b);
-    }
-
-    {
-      ui::Button* b = new ui::Button(192,0,32,tool_height,"X");
+      ui::Button* b = new ui::Button(160,0,32,tool_height,"X");
       b->mouse.click += [=] (input::SynMotionEvent&){
         N->gr.save();
         N->gr.move(N->gr.current_file,N->gr.current_page,"Copies",0);
@@ -1097,8 +1048,9 @@ int main(int,char**){
       }; 
       scene->add(b);
     }
+    
     {
-      ui::Button* b = new ui::Button(224,0,32,tool_height,"V");
+      ui::Button* b = new ui::Button(192,0,32,tool_height,"V");
       b->mouse.click += [=] (input::SynMotionEvent&){
         N->gr.save();
         N->gr.move("Copies",0,N->gr.current_file,N->gr.current_page);
