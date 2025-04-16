@@ -531,7 +531,7 @@ struct grid{
         for (stroke& k : rows[j].vect[i])
           k.draw(fb,y_scroll,y);
       for (file_link& l : rows[j].links)
-        if (l.y > y_scroll + link_size)
+        if (l.y > y_scroll)
           fb->draw_text(l.x,l.y-y_scroll+y,l.file,link_size);
     }
   }
@@ -562,7 +562,7 @@ struct grid{
             st.draw(fb,y_scroll,this->y);
           }
       for (file_link& l : rows[j].links)
-        if (l.y > y_scroll + link_size)
+        if (l.y > y_scroll)
           fb->draw_text(l.x,l.y-y_scroll+this->y,l.file,link_size);
     }
   }
@@ -749,8 +749,6 @@ public:
           s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
         fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
         dirty = 0;
-        // int marker = fb->perform_redraw(false);
-        // fb->wait_for_redraw(marker);
       }
     }
     void undraw_sel() {
@@ -1061,8 +1059,19 @@ int main(int,char**){
     }
     
 
+    // ui::TextDropdown* D = new ui::TextDropdown(300,0,100,48,"Whyyy");
+    // scene->add(D);
 
+    ui::RangeInput* range = new ui::RangeInput(240, 0, 128, tool_height);
+    range->percent = 0;
+    range->set_range(1, 10);
+    range->events.change += [=](float){
+      N->width = range->get_value()*2;
+    };
+    scene->add(range);
+    
 
+    ui::MainLoop::hide_overlay(NULL);
 
 
     ui::MainLoop::motion_event += PLS_DELEGATE(N->handle_motion_event);
