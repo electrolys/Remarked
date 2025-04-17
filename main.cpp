@@ -139,20 +139,85 @@ void my_draw_line_vert(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width
 }
 
 
+void my_draw_line_horiz(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width,int color){
+      fb->dirty = 1;
+      int dx =  abs(x1-x0);
+      int sx = x0<x1 ? 1 : -1;
+      int dy = -abs(y1-y0);
+      int sy = y0<y1 ? 1 : -1;
+      int err = dx+dy;
+      
+      fb->update_dirty(fb->dirty_area, min(x0,x1)-width/2-1, min(y0,y1)-1);
+      fb->update_dirty(fb->dirty_area, max(x0,x1)+width/2+1, max(y0,y1)+1);
+      
+      // fb->draw_circle(x0, y0, width/2, 1, color,true);
+      while (true){
+        // fb->_draw_rect_fast(x0-width/2, y0, width, 1, color);
+        my_draw_horiz_fast(fb,x0-width/2, y0, width, color);
+        
+        if (x0==x1 && y0==y1) {
+          // fb->draw_circle(x0, y0, width/2, 1, color,true);
+          break;
+        }
+        int e2 = 2*err;
+        if (e2 >= dy) {
+          err += dy;
+          x0 += sx;
+        }
+        if (e2 <= dx){
+          err += dx;
+          y0 += sy;
+        }
+      }
+}
+
+const char* pen_names[] = {
+  "Round",
+  "Vertical",
+  "Horizontal",
+};
+enum {
+  ROUND_PEN = 0,
+  VERT_PEN,
+  HORIZ_PEN,
+
+  NUM_PEN
+};
 
 struct stroke{
   int ax,ay,bx,by;
-  char width, color, type, etc;
+  unsigned char width, color, type, etc;
 
   stroke& undraw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
     if (ay+off_y-width/2 < y_scroll || by+off_y-width/2 < y_scroll) return *this;
-    my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+
+    switch (type){
+    case ROUND_PEN:
+      my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+      break;
+    case VERT_PEN:
+      my_draw_line_vert(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+      break;
+    case HORIZ_PEN:
+      my_draw_line_horiz(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,WHITE);
+      break;
+    }
     return *this;
   }
   
   stroke& draw(framebuffer::FB* fb,int y_scroll,int y,int off_x = 0,int off_y = 0){
-    if (ay+off_y < y_scroll || by+off_y < y_scroll) return *this;
-    my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+    if (ay+off_y-width/2 < y_scroll || by+off_y-width/2 < y_scroll) return *this;
+    switch (type){
+    case ROUND_PEN:
+      my_draw_line_circle(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+      break;
+    case VERT_PEN:
+      my_draw_line_vert(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+      break;
+    case HORIZ_PEN:
+      my_draw_line_horiz(fb,ax+off_x,y+off_y+ay-y_scroll,bx+off_x,y+off_y+by-y_scroll,width,color::SCALE_16[(int)color]);
+      break;
+    }
     return *this;
   }
 };
@@ -602,7 +667,7 @@ const int tool_height = 48;
 class NoteBook: public ui::Widget{
 public:
     int px = -1,py = -1,tool = DRAW,block_touch = 0;
-    char width = 2;
+    char width = 2,pen_type = 0;
     char eraser_width = 3;
     int lines = 25*2;
     grid gr;
@@ -762,7 +827,17 @@ public:
     }
 
     
-    
+    void add_stroke(input::SynMotionEvent& e){
+      char etc = 0;
+      switch (pen_type) {
+        
+      }
+      
+      if (px >= 0)
+        gr.add(stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc}.draw(fb,gr.y_scroll,y));
+      else
+        gr.add(stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc}.draw(fb,gr.y_scroll,y)); 
+    }
     int state = 0;
     std::string sel_name;
     void start_stroke(int tool,input::SynMotionEvent& e) {
@@ -770,9 +845,6 @@ public:
       state = tool;
       file_link* l;
       switch (state) {
-        case DRAW:
-          gr.add(stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
-          break;
         case ERASER:
           break;
         case SELECT:
@@ -804,9 +876,8 @@ public:
     void update_stroke(input::SynMotionEvent& e){
       switch (state) {
         case DRAW:
-          if (px < 0 || lensq(e.x-px,e.y-py) > max(min(16,(width/3)*(width/3)),1)){
-            if (px >= 0)
-              gr.add(stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,0,0}.draw(fb,gr.y_scroll,y));
+          if (px < 0 || lensq(e.x-px,e.y-py) > 1){
+            add_stroke(e);
             px = e.x;
             py = e.y;
           }
@@ -1069,8 +1140,18 @@ int main(int,char**){
       N->width = range->get_value()*2;
     };
     scene->add(range);
-    
 
+    {
+      ui::TextDropdown* drop = new ui::TextDropdown(368,0,128,tool_height,"Round");
+      drop->dir = ui::TextDropdown::DIRECTION::DOWN;
+      auto sect = drop->add_section("Pens");
+      for (int i = 0 ; i < NUM_PEN; i++)
+        sect->add_options(std::vector<std::string>{pen_names[i]});
+      drop->events.selected += [=](int id){
+        N->pen_type = id;
+      };
+      scene->add(drop);
+    }
     ui::MainLoop::hide_overlay(NULL);
 
 
