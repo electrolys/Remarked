@@ -9,16 +9,19 @@
 #include <cstdio>
 
 
+
+const int REM_LINK = -5;
 const int MOVE_SEL = -4;
 const int UNDO_SEL = -3;
 const int LINK_SEL = -2;
 const int NUL_ST = -1;
 
+
 const int DRAW = 0;
 const int ERASER = 1;
 const int SELECT = 2;
 const int LINK = 3;
-const int REM_LINK = 4;
+
 
 const int tool_height = 48;
 
@@ -258,6 +261,7 @@ public:
     }
     int state = 0;
     std::string sel_name;
+    file_link* prev_link;
     void start_stroke(int tool,input::SynMotionEvent& e) {
       px = py = -1;
       state = tool;
@@ -286,8 +290,11 @@ public:
           }
           unselect();
           break;
+        case ERASER:
+          if ((prev_link = gr.get_link(e.x,e.y+gr.y_scroll-y))) {
+            state = REM_LINK;
+          }
         default:
-          
           if (sel_x >= 0) {
             unselect();
             rerender();
@@ -304,7 +311,8 @@ public:
           }
           break;
         case ERASER:
-          px = -2;
+          px = e.x;
+          py = e.y;
           gr.remove(e.x,e.y+gr.y_scroll-y,eraser_width*8);
           break;
         case SELECT:
@@ -381,8 +389,10 @@ public:
           state = NUL_ST;
           break;
         case REM_LINK:
-          gr.remove_link(px,py+gr.y_scroll-y);
-          dirty = 1;
+          if (prev_link == gr.get_link(px,py+gr.y_scroll-y)) {
+            gr.remove_link(px,py+gr.y_scroll-y);
+            dirty = 1;
+          }
           state = NUL_ST;
           break;
       }
@@ -529,7 +539,7 @@ int main(int,char**){
     scene->add(tool_button(N,ERASER,"E"));
     scene->add(tool_button(N,SELECT,"S"));
     scene->add(tool_button(N,LINK,"+"));
-    scene->add(tool_button(N,REM_LINK,"-"));
+    // scene->add(tool_button(N,REM_LINK,"-"));
    
     {
       ui::Button* b = new ui::Button(160,0,32,tool_height,"X");
