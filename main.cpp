@@ -9,11 +9,6 @@
 #include <cstdio>
 
 
-
-
-
-
-
 const int MOVE_SEL = -4;
 const int UNDO_SEL = -3;
 const int LINK_SEL = -2;
@@ -73,7 +68,8 @@ public:
           gr.add(s);
         }
         sel_x = -1;
-        selection.clear();        
+        selection.clear();
+        dirty = 1;     
       }
     }
     
@@ -189,6 +185,49 @@ public:
       gr.redraw(sel_x,sel_y,sel_w,sel_h);
     }
 
+    stroke prev_stroke;
+
+    bool merge_if_inline(stroke& a, stroke& b){
+      if (a.bx == a.ax && a.by == a.ay) {
+        b = stroke{a.ax,a.ay,b.bx,b.by,a.width,a.color,a.type,a.etc};
+        return false;
+      }
+      int dx =  abs(a.bx-a.ax);
+      int sx = a.ax<a.bx ? 1 : -1;
+      int dy = -abs(a.by-a.ay);
+      int sy = a.ay<a.by ? 1 : -1;
+      int err = dx+dy;
+      int x = a.ax;
+      int y = a.ay;
+
+      int olen = 1000000000;
+      int ox = -1;
+      int oy = -1;
+      while (true) {
+        int l = lensq(x-b.bx,y-b.by);
+        if (l < olen){
+          olen = l;
+          ox = x;
+          oy = y;
+        } else 
+          break;
+        int e2 = 2*err;
+        if (e2 >= dy) {
+          err+= dy;
+          x += sx;
+        }
+        if (e2 <= dx){
+          err += dx;
+          y += sy;
+        }
+      }
+
+      if (olen <= 0) {
+        b = stroke{a.ax,a.ay,ox,oy,a.width,a.color,a.type,a.etc};
+        return false;
+      }
+      return true;
+    }
     
     void add_stroke(input::SynMotionEvent& e){
       char etc = 0;
@@ -196,10 +235,26 @@ public:
         //Eventually there may be pen specific data to set
       }
       
-      if (px >= 0)
-        gr.add(stroke{px,py+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc}.draw(fb,gr.y_scroll,y));
-      else
-        gr.add(stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc}.draw(fb,gr.y_scroll,y)); 
+      if (px >= 0){
+        stroke t = stroke{px,py,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc};
+
+
+        t.draw(fb,gr.y_scroll,y);
+        if (merge_if_inline(prev_stroke, t)){
+          gr.add(prev_stroke);
+        }
+        
+        prev_stroke = t;
+        px = t.bx;
+        py = t.by;
+      }
+      else {
+        prev_stroke = stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc};
+        prev_stroke.draw(fb,gr.y_scroll,y);
+        //gr.add(prev_stroke);
+        px = prev_stroke.bx;
+        py = prev_stroke.by;
+      }
     }
     int state = 0;
     std::string sel_name;
@@ -208,8 +263,6 @@ public:
       state = tool;
       file_link* l;
       switch (state) {
-        case ERASER:
-          break;
         case SELECT:
           if (sel_x >= 0 && e.x < sel_x+sel_w && e.x >= sel_x && e.y+gr.y_scroll-y < sel_y+sel_h && e.y+gr.y_scroll-y >= sel_y){
             state = MOVE_SEL;
@@ -233,6 +286,13 @@ public:
           }
           unselect();
           break;
+        default:
+          
+          if (sel_x >= 0) {
+            unselect();
+            rerender();
+          }
+          break;
       }
     }
 
@@ -241,8 +301,6 @@ public:
         case DRAW:
           if (px < 0 || lensq(e.x-px,e.y-py) > 1){
             add_stroke(e);
-            px = e.x;
-            py = e.y;
           }
           break;
         case ERASER:
@@ -286,6 +344,7 @@ public:
     void end_stroke(){
       switch (state) {
         case DRAW:
+          gr.add(prev_stroke);
           break;
         case ERASER:
           dirty = 1;
@@ -423,6 +482,8 @@ public:
 
         fb->draw_rect(tool*32,tool_height,32,4,BLACK,true);
 
+        draw_sel();
+        
         fb->dirty = 1;
         fb->waveform_mode = WAVEFORM_MODE_GC16;
         int marker = fb->perform_redraw(true);

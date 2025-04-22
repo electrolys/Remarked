@@ -83,8 +83,8 @@ inline void my_draw_line_circle(framebuffer::FB* fb,int x0,int y0,int x1,int y1,
       my_draw_circle_fast(fb,x0, y0, width / 2, color);
 
       while (true){
-        my_draw_vert_fast(fb,x0, y0-width/2, width, color);
-        my_draw_horiz_fast(fb,x0-width/2, y0, width, color);
+        my_draw_vert_fast(fb,x0, y0-width/2, (width/2)*2+1, color);
+        my_draw_horiz_fast(fb,x0-width/2, y0, (width/2)*2+1, color);
         if (x0==x1 && y0==y1) {
           my_draw_circle_fast(fb,x0, y0, width / 2, color);
           break;
@@ -100,38 +100,6 @@ inline void my_draw_line_circle(framebuffer::FB* fb,int x0,int y0,int x1,int y1,
         }
       }
 }
-
-inline void my_draw_line_line(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int xdir,int ydir,int color){
-      fb->dirty = 1;
-      int dx =  abs(x1-x0);
-      int sx = x0<x1 ? 1 : -1;
-      int dy = -abs(y1-y0);
-      int sy = y0<y1 ? 1 : -1;
-      int err = dx+dy;
-      fb->update_dirty(fb->dirty_area, min(x0,x1)-abs(xdir), min(y0,y1)-abs(ydir));
-      fb->update_dirty(fb->dirty_area, max(x0,x1)+abs(xdir), max(y0,y1)+abs(ydir));
-      // my_draw_circle_fast(fb,x0, y0, width / 2, color);
-
-      while (true){
-        // my_draw_vert_fast(fb,x0, y0-width/2, width, color);
-        // my_draw_horiz_fast(fb,x0-width/2, y0, width, color);
-        fb->draw_line(x0-xdir,y0-ydir,x0+xdir,y0+ydir,2,color);
-        if (x0==x1 && y0==y1) {
-          // my_draw_circle_fast(fb,x0, y0, width / 2, color);
-          break;
-        }
-        int e2 = 2*err;
-        if (e2 >= dy) {
-          err += dy;
-          x0 += sx;
-        }
-        if (e2 <= dx){
-          err += dx;
-          y0 += sy;
-        }
-      }
-}
-
 
 inline void my_draw_line_vert(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width,int color){
       fb->dirty = 1;
@@ -165,6 +133,48 @@ inline void my_draw_line_vert(framebuffer::FB* fb,int x0,int y0,int x1,int y1,in
       }
 }
 
+inline void my_draw_half_tri(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int x2,int y2,int color){
+  
+      int dx =  abs(x1-x0);
+      int sx = x0<x1 ? 1 : -1;
+      int dy = -abs(y1-y0);
+      int sy = y0<y1 ? 1 : -1;
+      int err = dx+dy;
+      
+}
+
+inline void my_draw_tri(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int x2,int y2,int color){
+      fb->dirty = 1;
+
+      #define swap(x,y) do {int t = x; x = y; y = t;} while(0)
+      if (y0 > y1) {swap(y0,y1);swap(x0,x1);};
+      if (y1 > y2) {swap(y1,y2);swap(x1,x2);};
+      if (y0 > y2) {swap(y0,y2);swap(x0,x2);};
+      #undef swap
+      
+      int dx =  abs(x2-x0);
+      int sx = x0<x2 ? 1 : -1;
+      int dy = y0-y2;
+      const int sy = 1;
+      int err = dx+dy;
+
+      int adx =  abs(x1-x0);
+      int asx = x0<x1 ? 1 : -1;
+      int ady = y0-y1;
+      const int asy = 1;
+      int aerr = adx+ady;
+
+      int bdx =  abs(x1-x0);
+      int bsx = x0<x1 ? 1 : -1;
+      int bdy = y0-y1;
+      const int bsy = 1;
+      int berr = bdx+bdy;
+      
+      while (true){
+
+      
+      }
+}
 
 
 inline void my_draw_line_horiz(framebuffer::FB* fb,int x0,int y0,int x1,int y1,int width,int color){

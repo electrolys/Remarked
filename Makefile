@@ -6,7 +6,7 @@ bin/remarked: obj/sqlite3.c.o obj/main.cpp.o obj/rmkit.h.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(CUSTOM_VARS)
 
 obj/main.cpp.o: main.cpp rmkit.h sqlite3.h common.hpp drawing.hpp grid.hpp 
-	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -Wall -Wextra -O2 -c -o obj/main.cpp.o main.cpp 
+	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -o obj/main.cpp.o main.cpp 
 
 obj/sqlite3.c.o: sqlite3.c sqlite3.h
 	$(CC) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -DSQLITE_OMIT_LOAD_EXTENSION -o obj/sqlite3.c.o sqlite3.c 
