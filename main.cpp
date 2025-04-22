@@ -84,6 +84,7 @@ public:
       gr.load(file,page);
     }
 
+
     
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
         pagenum = new ui::Button(w-128,0,128,y,"Home:1");
@@ -427,13 +428,40 @@ public:
         }
     }
 
+    
+
+    void load_link(file_link* l) {
+
+      switch (l->file[0]) {
+        case '@':
+          //load a supplementary file like a .md maybe
+          break;
+      }
+      
+      std::size_t i = l->file.find(":");
+
+      std::string file;
+      int page = 0;
+      if (i != std::string::npos){
+        file = l->file.substr(0,i);
+        if (i+1 < l->file.length())
+          page = std::stoi(l->file.substr(i+1))-1;
+      }else {
+        file = l->file;
+        //get last page
+      }
+      
+      
+      
+      load(i?file:gr.current_file,page);
+    }
     int link_x,link_y;
     ui::Keyboard kb;
     void on_mouse_click(input::SynMotionEvent& e){
       if (input::is_touch_event(e)){
         file_link* l = gr.get_link(e.x,e.y+gr.y_scroll-y);
         if (l){
-          load(l->file);
+          load_link(l);
           rerender();
         }
       }

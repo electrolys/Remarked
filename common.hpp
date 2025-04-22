@@ -67,6 +67,44 @@ static void sql_run(sqlite3_stmt* stmt, const char* args, ...) {
   while (sqlite3_step(stmt) != SQLITE_DONE){}//TODO error handling
 }
 
+static void sql_get(sqlite3_stmt* stmt, const char* args, const char* ret, ...) {
+  va_list varg;
+  va_start(varg,args);
+  sql_bind_v(stmt,args,varg);
+  
+  int t;
+  while ((t =sqlite3_step(stmt)) != SQLITE_DONE){
+    if (t == SQLITE_BUSY) continue;
+    if (t == SQLITE_ROW) {
+      for (int i = 0 ; ret[i]; i++)
+        switch (ret[i]) {
+          case 'i':
+            *va_arg(varg,int*) = sqlite3_column_int(stmt,i);
+            break;
+          case 'I':
+            *va_arg(varg,sqlite3_int64*) = sqlite3_column_int64(stmt,i);
+            break;
+          case 'u':
+            *va_arg(varg,unsigned int*) = sqlite3_column_int(stmt,i);
+            break;
+          case 'U':
+            *va_arg(varg,sqlite3_uint64*) = sqlite3_column_int64(stmt,i);
+            break;
+          case 's':
+            *va_arg(varg,const unsigned char**) = sqlite3_column_text(stmt,i);
+            break;
+          case 'S':
+            *va_arg(varg,std::string*) = std::string((const char*)sqlite3_column_text(stmt,i));
+            break;
+        }
+      while (sqlite3_step(stmt) != SQLITE_DONE){}
+      break;
+    }
+  }//TODO error handling
+
+  va_end(varg);
+}
+
 
 inline int lensq(int x,int y){return x*x+y*y;}
 inline int min(int x,int y){return x<y?x:y;}

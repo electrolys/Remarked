@@ -78,8 +78,8 @@ struct grid_row{
 const char* read_st_str = "select ax, ay, bx, by, size, color, type, etc from pen_strokes where file=? and page=?;";
 const char* write_st_str = "insert into pen_strokes (file, page, ax, ay, bx, by, size, color, type, etc) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
 
-const char* write_link_str = "insert into file_links (file, page, to_file, to_page, x, y) values (?, ?, ?, ?, ?, ?);";
-const char* read_link_str = "select to_file, to_page, x, y from file_links where file=? and page=?;";
+const char* write_link_str = "insert into file_links (file, page, to_file, x, y) values (?, ?, ?, ?, ?);";
+const char* read_link_str = "select to_file, x, y from file_links where file=? and page=?;";
 
 const char* clear_st_str = 
 "delete from pen_strokes where file=? and page=?;";
@@ -90,7 +90,7 @@ const char* clear_link_str =
 const char* init_st_str = 
 "PRAGMA synchronous = OFF;\n"
 "PRAGMA journal_mode = MEMORY;\n"
-"create table if not exists file_links (file text, page int, to_file text, to_page int, x int, y int) strict;\n" // I have to_page just incase but frankly I don't want to use it cause it'll cause a lot of problems with inaccurate links once I have page deleting
+"create table if not exists file_links (file text, page int, to_file text, x int, y int) strict;\n" // I have to_page just incase but frankly I don't want to use it cause it'll cause a lot of problems with inaccurate links once I have page deleting
 "create table if not exists pen_strokes (file text, page int, ax int, ay int, bx int, by int, size int, color int, type int, etc int) strict;";
 
 
@@ -226,7 +226,7 @@ struct grid{
         sqlite3_exec(db, "BEGIN TRANSACTION", NULL, NULL, NULL);
         for (int j = 0 ; j < s ; j++)
           for (file_link& l : rows[j].links)
-            sql_run(write_l,"sisiii",current_file.c_str(),abs(current_page),l.file.c_str(),0,l.x,l.y);
+            sql_run(write_l,"sisii",current_file.c_str(),abs(current_page),l.file.c_str(),l.x,l.y);
         sqlite3_exec(db, "END TRANSACTION", NULL, NULL, NULL);
       }
       
@@ -244,7 +244,7 @@ struct grid{
     
 
     sql_bind(read_s,"si",file.c_str(),abs(page));
-    int t = 0;
+    int t;
     while ((t=sqlite3_step(read_s)) != SQLITE_DONE){
       if (t == SQLITE_ROW) {
         stroke st = {
@@ -262,15 +262,13 @@ struct grid{
       
     }
 
-
     sql_bind(read_l,"si",file.c_str(),abs(page));
-    t = 0;
     while ((t=sqlite3_step(read_l)) != SQLITE_DONE){
       if (t == SQLITE_BUSY) continue;
       if (t == SQLITE_ROW) {
         const unsigned char* s = sqlite3_column_text(read_l,0);
         std::string t((const char*)s);
-        add_link(sqlite3_column_int(read_l,2),sqlite3_column_int(read_l,3),t);
+        add_link(sqlite3_column_int(read_l,1),sqlite3_column_int(read_l,2),t);
         continue;
       }
     }
@@ -344,7 +342,7 @@ struct grid{
       }
     }
   }
-
+  
   
   
 
