@@ -81,16 +81,21 @@ const char* write_st_str = "insert into pen_strokes (file, page, ax, ay, bx, by,
 const char* write_link_str = "insert into file_links (file, page, to_file, x, y) values (?, ?, ?, ?, ?);";
 const char* read_link_str = "select to_file, x, y from file_links where file=? and page=?;";
 
+const char* write_dat_str = "replace into page_data (file, page, key, value) values (?, ?, ?, ?);";
+const char* read_dat_str = "select value from page_data where file=? and page=? and key=?;";
+
 const char* clear_st_str = 
 "delete from pen_strokes where file=? and page=?;";
 const char* clear_link_str =
 "delete from file_links where file=? and page=?;";
-
+const char* clear_dat_str =
+"delete from page_data where file=? and page=?;";
 
 const char* init_st_str = 
 "PRAGMA synchronous = OFF;\n"
 "PRAGMA journal_mode = MEMORY;\n"
-"create table if not exists file_links (file text, page int, to_file text, x int, y int) strict;\n" // I have to_page just incase but frankly I don't want to use it cause it'll cause a lot of problems with inaccurate links once I have page deleting
+"create table if not exists file_links (file text, page int, to_file text, x int, y int) strict;\n"
+"create table if not exists page_data (file text, page int, key text, value any, primary key (file,page,key));\n"
 "create table if not exists pen_strokes (file text, page int, ax int, ay int, bx int, by int, size int, color int, type int, etc int) strict;";
 
 
@@ -106,6 +111,11 @@ const char* shift_link_str =
 const char* setpage_link_str = 
 "update file_links set file = ?3, page = ?4 where file = ?1 and page = ?2;";
 
+const char* shift_dat_str = 
+"update page_data set page = page + ?3 where file = ?1 and page >= ?2;";
+
+const char* setpage_dat_str = 
+"update page_data set file = ?3, page = ?4 where file = ?1 and page = ?2;";
 
 
 const int link_size = 32;
@@ -126,10 +136,9 @@ struct grid{
   int current_page = 0;
   framebuffer::FB* fb;
   sqlite3* db = nullptr;
-  sqlite3_stmt* read_s, *write_s, *clear_s;
-  sqlite3_stmt* read_l, *write_l, *clear_l;
-  
-  sqlite3_stmt* shift_s, *page_s, *shift_l, *page_l;
+  sqlite3_stmt* read_s, *write_s, *clear_s, *shift_s, *page_s;
+  sqlite3_stmt* read_l, *write_l, *clear_l, *shift_l, *page_l;
+  sqlite3_stmt* read_d, *write_d, *clear_d, *shift_d, *page_d;
 
   void move(std::string from, int from_page, std::string to, int to_page) {
     sql_run(shift_s,"sii",to.c_str(),abs(to_page),1);
@@ -152,27 +161,31 @@ struct grid{
       error_msg(fb,err);
       sqlite3_free(err);
     }
-    
-    if (sqlite3_prepare_v2(db,read_st_str,-1,&read_s,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,read_link_str,-1,&read_l,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,write_st_str,-1,&write_s,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,write_link_str,-1,&write_l,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,clear_st_str,-1,&clear_s,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,clear_link_str,-1,&clear_l,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,shift_st_str,-1,&shift_s,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,shift_link_str,-1,&shift_l,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,setpage_st_str,-1,&page_s,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
-    if (sqlite3_prepare_v2(db,setpage_link_str,-1,&page_l,NULL))
-      error_msg(fb,(const char*)sqlite3_errmsg(db));
+    #define prepare(str,stmt) if (sqlite3_prepare_v2(db,str,-1,&stmt,NULL)) error_msg(fb,(const char*)sqlite3_errmsg(db));
+
+    prepare(read_st_str,read_s);
+    prepare(read_link_str,read_l);
+    prepare(read_dat_str,read_d);
+
+    prepare(write_st_str,write_s);
+    prepare(write_link_str,write_l);
+    prepare(write_dat_str,write_d);
+
+    prepare(clear_st_str,clear_s);
+    prepare(clear_link_str,clear_l);
+    prepare(clear_dat_str,clear_d);
+
+    prepare(shift_st_str,shift_s);
+    prepare(shift_link_str,shift_l);
+    prepare(shift_dat_str,shift_d);
+
+    prepare(setpage_st_str,page_s);
+    prepare(setpage_link_str,page_l);
+    prepare(setpage_dat_str,page_d);
+
+    #undef prepare
+
+
     load(current_file,abs(current_page));
   }
 

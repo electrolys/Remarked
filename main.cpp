@@ -82,6 +82,8 @@ public:
       pagenum->text = file+":"+std::to_string(abs(page)+1);
       pagenum->dirty = 1;
       gr.load(file,page);
+
+      sql_run(gr.write_d,"sisi",file.c_str(),-1,"last_page",page);
     }
 
 
@@ -373,7 +375,6 @@ public:
           state = NUL_ST;
           break;
         case LINK_SEL:
-          
           gr.add_link(sel_x,sel_y,sel_name);
           sel_name = "";
           state = NUL_ST;
@@ -440,20 +441,20 @@ public:
       
       std::size_t i = l->file.find(":");
 
-      std::string file;
+      std::string file = gr.current_file;
       int page = 0;
       if (i != std::string::npos){
-        file = l->file.substr(0,i);
+        if (i > 0)
+          file = l->file.substr(0,i);
         if (i+1 < l->file.length())
           page = std::stoi(l->file.substr(i+1))-1;
       }else {
         file = l->file;
-        //get last page
+        sql_geti(gr.read_d,"sis",page,file.c_str(),-1,"last_page");
       }
       
       
-      
-      load(i?file:gr.current_file,page);
+      load(file,page);
     }
     int link_x,link_y;
     ui::Keyboard kb;
