@@ -570,11 +570,11 @@ ui::Button* tool_button(NoteBook* N,int id,const char* ch) {
 
 
 struct SettingsStuff {
-  
+  bool running = true;
   ui::Scene scene;
   ui::Button* rtl;
   ui::RangeInput* lines;
-  SettingsStuff(NoteBook* N, ui::Scene main_scene) {
+  SettingsStuff(NoteBook* N, ui::Scene main_scene,int w,int h) {
     scene = ui::make_scene();
 
     {
@@ -612,6 +612,15 @@ struct SettingsStuff {
       scene->add( range );
     }
 
+    {
+      ui::Button* b = new ui::Button(w-128,h-tool_height,128,tool_height,"Exit");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        N->gr.close();
+        running = false;
+      };
+      scene->add(b);
+    }
+    
     // {
       // ui::TextDropdown* drop = new ui::TextDropdown(0, tool_height*3, 256, tool_height, "Round");
       // drop->dir = ui::TextDropdown::DIRECTION::DOWN;
@@ -703,7 +712,7 @@ int main(int,char**){
       scene->add( range );
     }
 
-    SettingsStuff settings(N,scene);
+    SettingsStuff settings(N,scene,w,h);
     scene->add( settings.settings_button(w-160-128,0,128,tool_height,N));
 
     {
@@ -729,7 +738,6 @@ int main(int,char**){
             if (sleep) {
               N->kb.hide();
               N->fb->clear_screen();
-              N->gr.save();
               ui::MainLoop::set_scene(sleep_scene);
               N->refresh_screen();
               N->gr.close();
@@ -747,7 +755,7 @@ int main(int,char**){
         e.stop_propagation();
       }
     };
-    while (true){
+    while (settings.running){
         ui::MainLoop::main();
         ui::MainLoop::redraw();
         ui::MainLoop::read_input();
