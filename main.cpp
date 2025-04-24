@@ -30,8 +30,10 @@ public:
     int px = -1,py = -1,tool = DRAW,block_touch = 0;
     char width = 2,pen_type = 0;
     char eraser_width = 3;
-    int lines = 25*2;
+    int lines = 50;
     grid gr;
+
+    bool rtl = false;
 
     ui::Button* pagenum;
 
@@ -84,12 +86,22 @@ public:
       gr.load(file,page);
 
       sql_run(gr.write_d,"sisi",file.c_str(),-1,"last_page",page);
+
+      sql_geti(gr.read_d,"sis",lines,file.c_str(),page,"vert_lines");
+      sql_run(gr.write_d,"sisi",file.c_str(),page,"vert_lines",lines);//This write makes sure that all pages that get loaded keep their lines value even if you access the file in a different way later
+
+      int b;
+      if (sql_geti(gr.read_d,"sis",b,file.c_str(),-1,"RTL")){
+        rtl = b;
+      }
     }
+
+    
 
 
     
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
-        pagenum = new ui::Button(w-128,0,128,y,"Home:1");
+        pagenum = new ui::Button(w-160,0,160,y,"Home:1");
 
         pagenum->mouse.click += [this] (input::SynMotionEvent&){
           load();
@@ -111,11 +123,21 @@ public:
             int y = e.y - drag_y;
             if (abs(x) > abs(y)*2 && abs(x) > this->h/8){
               undraw();
-              if (x > 0 && gr.current_page > -998){
-                load(gr.current_file,gr.current_page-1);
+
+              int to_page = gr.current_page;
+              if (rtl){
+                to_page = gr.current_page-1;
+                if (x > 0)
+                  to_page = gr.current_page+1;
+              }else {
+                to_page = gr.current_page+1;
+                if (x > 0)
+                  to_page = gr.current_page-1;
               }
-              if (x < 0 && gr.current_page < 998) {
-                load(gr.current_file,gr.current_page+1);
+              
+              
+              if (to_page >= 0 && to_page <= 9998){
+                load(gr.current_file,to_page);
               }
               rerender();
             }
@@ -134,6 +156,8 @@ public:
           if (e.text.length() > 0)
           this->gr.add_link(this->link_x,this->link_y,e.text);
         };
+
+        load();
 
         
     }
@@ -435,7 +459,7 @@ public:
 
       switch (l->file[0]) {
         case '@':
-          //load a supplementary file like a .md maybe
+          //load a supplementary file like a .md or .pdf at some point
           break;
       }
       
@@ -544,6 +568,80 @@ ui::Button* tool_button(NoteBook* N,int id,const char* ch) {
   return b;
 }
 
+
+struct SettingsStuff {
+  
+  ui::Scene scene;
+  ui::Button* rtl;
+  ui::RangeInput* lines;
+  SettingsStuff(NoteBook* N, ui::Scene main_scene) {
+    scene = ui::make_scene();
+
+    {
+      ui::Button* b = new ui::Button(1,0,256,tool_height,"<--");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        
+        ui::MainLoop::set_scene(main_scene);
+        N->fb->clear_screen();
+        N->refresh_screen();
+      }; 
+      scene->add(b);
+    }
+    {
+      ui::Button* b = new ui::Button(0,tool_height*1,256,tool_height,N->rtl?"RTL":"LTR");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        N->rtl = !N->rtl;
+        sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),-1,"RTL",N->rtl);
+        b->text = N->rtl?"RTL":"LTR";
+        b->dirty = 1;
+      }; 
+      rtl = b;
+      scene->add(b);
+    }
+    {
+      ui::RangeInput* range = new ui::RangeInput(5, tool_height*2, 251, tool_height);
+      range->set_range(0, 15);
+      range->set_value(N->lines/10);
+      range->events.change += [=] (float){
+        // range->undraw();
+        // range->render();
+        N->lines = range->get_value()*10;
+        sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),N->gr.current_page,"vert_lines",N->lines);
+      };
+      lines = range;
+      scene->add( range );
+    }
+
+    // {
+      // ui::TextDropdown* drop = new ui::TextDropdown(0, tool_height*3, 256, tool_height, "Round");
+      // drop->dir = ui::TextDropdown::DIRECTION::DOWN;
+      // auto sect = drop->add_section( "Pens" );
+      // // for (int i = 0 ; i < NUM_PEN; i++)
+        // // sect->add_options(std::vector<std::string>{pen_names[i]});
+      // // drop->events.selected += [=](int id) {
+        // // N->pen_type = id;
+      // // };
+      // scene->add(drop);
+    // }
+  }
+
+  ui::Button* settings_button(int x,int y,int w,int h,NoteBook* N) {
+    ui::Button* b = new ui::Button(x,y,w,h,"Settings");
+    b->mouse.click += [=] (input::SynMotionEvent&){
+
+      rtl->text = N->rtl?"RTL":"LTR";
+      lines->set_value(N->lines/10);
+
+      ui::MainLoop::set_scene(scene);
+      N->fb->clear_screen();
+      N->refresh_screen();
+      
+    };  
+    return b;
+  }
+  
+};
+
 int main(int,char**){    
     auto scene = ui::make_scene();
     auto sleep_scene = ui::make_scene();
@@ -595,32 +693,34 @@ int main(int,char**){
 
     // ui::TextDropdown* D = new ui::TextDropdown(300,0,100,48,"Whyyy");
     // scene->add(D);
+    {
+      ui::RangeInput* range = new ui::RangeInput(240, 0, 128, tool_height);
+      range->percent = 0;
+      range->set_range(1, 10);
+      range->events.change += [=] (float){
+        N->width = range->get_value()*2;
+      };
+      scene->add( range );
+    }
 
-    ui::RangeInput* range = new ui::RangeInput(240, 0, 128, tool_height);
-    range->percent = 0;
-    range->set_range(1, 10);
-    range->events.change += [=](float){
-      N->width = range->get_value()*2;
-    };
-    scene->add(range);
+    SettingsStuff settings(N,scene);
+    scene->add( settings.settings_button(w-160-128,0,128,tool_height,N));
 
     {
-      ui::TextDropdown* drop = new ui::TextDropdown(368,0,128,tool_height,"Round");
+      ui::TextDropdown* drop = new ui::TextDropdown(368, 0, 128, tool_height, "Round");
       drop->dir = ui::TextDropdown::DIRECTION::DOWN;
-      auto sect = drop->add_section("Pens");
+      auto sect = drop->add_section( "Pens" );
       for (int i = 0 ; i < NUM_PEN; i++)
         sect->add_options(std::vector<std::string>{pen_names[i]});
-      drop->events.selected += [=](int id){
+      drop->events.selected += [=](int id) {
         N->pen_type = id;
       };
       scene->add(drop);
     }
     ui::MainLoop::hide_overlay(NULL);
 
-
     ui::MainLoop::motion_event += PLS_DELEGATE(N->handle_motion_event);
 
-    
     ui::MainLoop::key_event += [&](input::SynKeyEvent& e) {
       if (e.is_pressed){
         switch (e.key) {
@@ -633,8 +733,7 @@ int main(int,char**){
               ui::MainLoop::set_scene(sleep_scene);
               N->refresh_screen();
               N->gr.close();
-            }
-            else {
+            } else {
               N->fb->clear_screen();
               ui::MainLoop::set_scene(scene);
               N->gr.open();

@@ -186,7 +186,7 @@ struct grid{
     #undef prepare
 
 
-    load(current_file,abs(current_page));
+    //load(current_file,abs(current_page));
   }
 
   void close(){
