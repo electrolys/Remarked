@@ -95,7 +95,7 @@ const char* init_st_str =
 "PRAGMA synchronous = OFF;\n"
 "PRAGMA journal_mode = MEMORY;\n"
 "create table if not exists file_links (file text, page int, to_file text, x int, y int) strict;\n"
-"create table if not exists page_data (file text, page int, key text, value any, primary key (file,page,key));\n"
+"create table if not exists page_data (file text, page int, key text, value any, unique(file, page, key));\n"
 "create table if not exists pen_strokes (file text, page int, ax int, ay int, bx int, by int, size int, color int, type int, etc int) strict;";
 
 
@@ -112,7 +112,7 @@ const char* setpage_link_str =
 "update file_links set file = ?3, page = ?4 where file = ?1 and page = ?2;";
 
 const char* shift_dat_str = 
-"update page_data set page = page + ?3 where file = ?1 and page >= ?2;";
+"update or ignore page_data set page = page + ?3 where file = ?1 and page >= ?2;";
 
 const char* setpage_dat_str = 
 "update page_data set file = ?3, page = ?4 where file = ?1 and page = ?2;";
@@ -141,14 +141,45 @@ struct grid{
   sqlite3_stmt* read_d, *write_d, *clear_d, *shift_d, *page_d;
 
   void move(std::string from, int from_page, std::string to, int to_page) {
+    if (from == to) {
+      sql_run(page_s,"sisi",from.c_str(),abs(from_page),to.c_str(),-1);
+      sql_run(page_l,"sisi",from.c_str(),abs(from_page),to.c_str(),-1);
+      sql_run(page_d,"sisi",from.c_str(),abs(from_page),to.c_str(),-1);
+
+      sql_run(shift_s,"sii",from.c_str(),abs(from_page)+1,-1);
+      sql_run(shift_l,"sii",from.c_str(),abs(from_page)+1,-1);
+      sql_run(shift_d,"sii",from.c_str(),abs(from_page)+1,-1);
+
+      sql_run(shift_s,"sii",to.c_str(),abs(to_page),1);
+      sql_run(shift_l,"sii",to.c_str(),abs(to_page),1);
+      sql_run(shift_d,"sii",to.c_str(),abs(to_page),1);
+
+      sql_run(page_s,"sisi",from.c_str(),-1,to.c_str(),abs(to_page));
+      sql_run(page_l,"sisi",from.c_str(),-1,to.c_str(),abs(to_page));
+      sql_run(page_d,"sisi",from.c_str(),-1,to.c_str(),abs(to_page));
+      return;
+    }
     sql_run(shift_s,"sii",to.c_str(),abs(to_page),1);
     sql_run(shift_l,"sii",to.c_str(),abs(to_page),1);
-
+    sql_run(shift_d,"sii",to.c_str(),abs(to_page),1);
+    
     sql_run(page_s,"sisi",from.c_str(),abs(from_page),to.c_str(),abs(to_page));
     sql_run(page_l,"sisi",from.c_str(),abs(from_page),to.c_str(),abs(to_page));
-
+    sql_run(page_d,"sisi",from.c_str(),abs(from_page),to.c_str(),abs(to_page));
+    
     sql_run(shift_s,"sii",from.c_str(),abs(from_page)+1,-1);
     sql_run(shift_l,"sii",from.c_str(),abs(from_page)+1,-1);
+    sql_run(shift_d,"sii",from.c_str(),abs(from_page)+1,-1);
+  }
+
+  void del(std::string file, int page) {
+    sql_run(clear_s,"si",file.c_str(),page);
+    sql_run(clear_l,"si",file.c_str(),page);
+    sql_run(clear_d,"si",file.c_str(),page);
+
+    sql_run(shift_s,"sii",file.c_str(),abs(page)+1,-1);
+    sql_run(shift_l,"sii",file.c_str(),abs(page)+1,-1);
+    sql_run(shift_d,"sii",file.c_str(),abs(page)+1,-1);
   }
   
   void open(){
@@ -375,6 +406,7 @@ struct grid{
     }
   }
 
+
   void remove(int x,int y,int r){
     int end_i = (x+r+1)/row_w;
     int end_j = (y+r+1)/row_h;
@@ -404,6 +436,14 @@ struct grid{
         if (l.y > y_scroll)
           fb->draw_text(l.x,l.y-y_scroll+this->y,l.file,link_size);
     }
+  }
+
+  void clear() {
+    rows.clear();
+    edited = true;
+    linksedited = true;
+    save();
+    y_scroll = 0;
   }
 
   void cut(int x,int y,int r,std::vector<stroke>& out){

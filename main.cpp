@@ -2,6 +2,8 @@
 #include <tuple>
 #include <vector>
 
+#include <chrono>
+
 
 #include "drawing.hpp"
 #include "common.hpp"
@@ -36,6 +38,7 @@ public:
     bool rtl = false;
 
     ui::Button* pagenum;
+
 
     
 
@@ -102,6 +105,7 @@ public:
     
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
         pagenum = new ui::Button(w-160,0,160,y,"Home:1");
+        
 
         pagenum->mouse.click += [this] (input::SynMotionEvent&){
           load();
@@ -599,19 +603,36 @@ struct SettingsStuff {
       scene->add(b);
     }
     {
-      ui::RangeInput* range = new ui::RangeInput(5, tool_height*2, 251, tool_height);
+      ui::RangeInput* range = new ui::RangeInput(w-128, tool_height*1, 123, tool_height);
       range->set_range(0, 15);
       range->set_value(N->lines/10);
       range->events.change += [=] (float){
-        // range->undraw();
-        // range->render();
         N->lines = range->get_value()*10;
         sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),N->gr.current_page,"vert_lines",N->lines);
       };
       lines = range;
       scene->add( range );
-    }
 
+
+      ui::Text* text = new ui::Text(w-256,tool_height*1+10,123,tool_height,"Rule");
+      scene->add(text);
+    }
+    {
+      ui::Button* b = new ui::Button(w-256,tool_height*2,128,tool_height,"Clear");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        N->gr.clear();
+        N->dirty = 1;    
+      }; 
+      scene->add(b);
+    }
+    {
+      ui::Button* b = new ui::Button(w-256,tool_height*2,128,tool_height,"Delete");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        N->gr.clear();
+        N->dirty = 1;    
+      }; 
+      scene->add(b);
+    }
     {
       ui::Button* b = new ui::Button(w-128,h-tool_height,128,tool_height,"Exit");
       b->mouse.click += [=] (input::SynMotionEvent&) {
@@ -621,17 +642,6 @@ struct SettingsStuff {
       scene->add(b);
     }
     
-    // {
-      // ui::TextDropdown* drop = new ui::TextDropdown(0, tool_height*3, 256, tool_height, "Round");
-      // drop->dir = ui::TextDropdown::DIRECTION::DOWN;
-      // auto sect = drop->add_section( "Pens" );
-      // // for (int i = 0 ; i < NUM_PEN; i++)
-        // // sect->add_options(std::vector<std::string>{pen_names[i]});
-      // // drop->events.selected += [=](int id) {
-        // // N->pen_type = id;
-      // // };
-      // scene->add(drop);
-    // }
   }
 
   ui::Button* settings_button(int x,int y,int w,int h,NoteBook* N) {
@@ -675,7 +685,6 @@ int main(int,char**){
     scene->add(tool_button(N,ERASER,"E"));
     scene->add(tool_button(N,SELECT,"S"));
     scene->add(tool_button(N,LINK,"+"));
-    // scene->add(tool_button(N,REM_LINK,"-"));
    
     {
       ui::Button* b = new ui::Button(160,0,32,tool_height,"X");
@@ -700,8 +709,6 @@ int main(int,char**){
     }
     
 
-    // ui::TextDropdown* D = new ui::TextDropdown(300,0,100,48,"Whyyy");
-    // scene->add(D);
     {
       ui::RangeInput* range = new ui::RangeInput(240, 0, 128, tool_height);
       range->percent = 0;
@@ -744,7 +751,10 @@ int main(int,char**){
             } else {
               N->fb->clear_screen();
               ui::MainLoop::set_scene(scene);
+              
               N->gr.open();
+              N->load(N->gr.current_file,N->gr.current_page);
+
               N->refresh_screen();
             }
             break;
@@ -756,6 +766,7 @@ int main(int,char**){
       }
     };
     while (settings.running){
+  
         ui::MainLoop::main();
         ui::MainLoop::redraw();
         ui::MainLoop::read_input();
