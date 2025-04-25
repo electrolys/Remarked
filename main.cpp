@@ -626,10 +626,11 @@ struct SettingsStuff {
       scene->add(b);
     }
     {
-      ui::Button* b = new ui::Button(w-256,tool_height*2,128,tool_height,"Delete");
+      ui::Button* b = new ui::Button(w-256,tool_height*3,128,tool_height,"Delete");
       b->mouse.click += [=] (input::SynMotionEvent&) {
-        N->gr.clear();
-        N->dirty = 1;    
+        N->gr.save();
+        N->gr.del(N->gr.current_file,N->gr.current_page);
+        N->load(N->gr.current_file,N->gr.current_page);
       }; 
       scene->add(b);
     }
@@ -766,7 +767,6 @@ int main(int,char**){
       }
     };
     while (settings.running){
-  
         ui::MainLoop::main();
         ui::MainLoop::redraw();
         ui::MainLoop::read_input();
