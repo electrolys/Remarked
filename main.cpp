@@ -30,8 +30,7 @@ const int tool_height = 48;
 class NoteBook: public ui::Widget{
 public:
     int px = -1,py = -1,tool = DRAW,block_touch = 0;
-    char width = 2,pen_type = 0;
-    char eraser_width = 3;
+    int width = 2, pen_type = 0, eraser_width = 3, select_width = 3;
     int lines = 50;
     grid gr;
 
@@ -103,6 +102,7 @@ public:
 
 
     
+    
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
         pagenum = new ui::Button(w-160,0,160,y,"Home:1");
         
@@ -163,7 +163,11 @@ public:
 
         load();
 
-        
+
+        sql_geti(gr.read_d,"sis",width,":",0,"pen_width");
+        sql_geti(gr.read_d,"sis",eraser_width,":",0,"eraser_width");
+        sql_geti(gr.read_d,"sis",select_width,":",0,"select_width");
+        sql_geti(gr.read_d,"sis",pen_type,":",0,"pen_type");
     }
 
     
@@ -270,7 +274,7 @@ public:
       }
       
       if (px >= 0){
-        stroke t = stroke{px,py,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc};
+        stroke t = stroke{px,py,e.x,e.y+gr.y_scroll-y,width*2,0,pen_type,etc};
 
 
         t.draw(fb,gr.y_scroll,y);
@@ -283,7 +287,7 @@ public:
         py = t.by;
       }
       else {
-        prev_stroke = stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width,0,pen_type,etc};
+        prev_stroke = stroke{e.x,e.y+gr.y_scroll-y,e.x,e.y+gr.y_scroll-y,width*2,0,pen_type,etc};
         prev_stroke.draw(fb,gr.y_scroll,y);
         //gr.add(prev_stroke);
         px = prev_stroke.bx;
@@ -347,7 +351,7 @@ public:
           gr.remove(e.x,e.y+gr.y_scroll-y,eraser_width*8);
           break;
         case SELECT:
-          gr.cut(e.x,e.y+gr.y_scroll-y,eraser_width*8,selection);
+          gr.cut(e.x,e.y+gr.y_scroll-y,select_width*8,selection);
           break;
         case MOVE_SEL:
           if (px < 0 || lensq(e.x-px,e.y-py) > 32){
@@ -498,9 +502,9 @@ public:
     
     void on_mouse_move(input::SynMotionEvent& e){
         if (input::is_wacom_event(e)){ 
-          if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1))){
-            if (e.right && e.right!=-1){
-              if (is_started){
+          if (!((e.left && e.left!=-1) || (e.eraser && e.eraser!=-1))) {
+            if (e.right && e.right!=-1) {
+              if (is_started) {
                 end_stroke();
                 is_started = false;
                 px = py = -1;
@@ -525,7 +529,7 @@ public:
 
     
     void handle_motion_event(input::SynMotionEvent &e){
-       if (input::is_touch_event(e) && px!=-1){
+       if (input::is_touch_event(e) && px!=-1) {
           e.stop_propagation();
           return;
        }
@@ -562,12 +566,17 @@ public:
 
 
 
-ui::Button* tool_button(NoteBook* N,int id,const char* ch) {
+ui::Button* tool_button(NoteBook* N,ui::RangeInput* range,int id,const char* ch) {
   ui::Button* b = new ui::Button(id*32,0,32,tool_height,ch);
-  b->mouse.click += [N, id] (input::SynMotionEvent&){
+  b->mouse.click += [N, id, range] (input::SynMotionEvent&){
     N->fb->draw_rect(N->tool*32,tool_height,32,4,WHITE,true);
     N->fb->draw_rect(id*32,tool_height,32,4,BLACK,true);
     N->tool = id;
+    switch (N->tool) {
+      case DRAW: range->set_value(N->width); range->dirty = 1; break;
+      case ERASER: range->set_value(N->eraser_width); range->dirty = 1; break;
+      case SELECT: range->set_value(N->select_width); range->dirty = 1; break;
+    }
   }; 
   return b;
 }
@@ -682,10 +691,7 @@ int main(int,char**){
     scene->add(N);
     scene->add(N->pagenum);
 
-    scene->add(tool_button(N,DRAW,"W"));
-    scene->add(tool_button(N,ERASER,"E"));
-    scene->add(tool_button(N,SELECT,"S"));
-    scene->add(tool_button(N,LINK,"+"));
+    
    
     {
       ui::Button* b = new ui::Button(160,0,32,tool_height,"X");
@@ -712,25 +718,45 @@ int main(int,char**){
 
     {
       ui::RangeInput* range = new ui::RangeInput(240, 0, 128, tool_height);
-      range->percent = 0;
+      
       range->set_range(1, 10);
+      range->set_value(N->width);
       range->events.change += [=] (float){
-        N->width = range->get_value()*2;
+        switch (N->tool){
+          case DRAW:{
+            N->width = range->get_value();
+            sql_run(N->gr.write_d,"sisi",":",0,"pen_width",N->width);
+          }break;
+          case ERASER:{
+            N->eraser_width = range->get_value();
+            sql_run(N->gr.write_d,"sisi",":",0,"eraser_width",N->eraser_width);
+          }break;
+          case SELECT:{
+            N->select_width = range->get_value();
+            sql_run(N->gr.write_d,"sisi",":",0,"select_width",N->select_width);
+          }break;
+        }
       };
       scene->add( range );
+
+      scene->add(tool_button(N,range,DRAW,"W"));
+      scene->add(tool_button(N,range,ERASER,"E"));
+      scene->add(tool_button(N,range,SELECT,"S"));
+      scene->add(tool_button(N,range,LINK,"+"));
     }
 
     SettingsStuff settings(N,scene,w,h);
     scene->add( settings.settings_button(w-160-128,0,128,tool_height,N));
 
     {
-      ui::TextDropdown* drop = new ui::TextDropdown(368, 0, 128, tool_height, "Round");
+      ui::TextDropdown* drop = new ui::TextDropdown(368, 0, 128, tool_height, pen_names[N->pen_type]);
       drop->dir = ui::TextDropdown::DIRECTION::DOWN;
       auto sect = drop->add_section( "Pens" );
       for (int i = 0 ; i < NUM_PEN; i++)
         sect->add_options(std::vector<std::string>{pen_names[i]});
       drop->events.selected += [=](int id) {
         N->pen_type = id;
+        sql_run(N->gr.write_d,"sisi",":",0,"pen_type",id);
       };
       scene->add(drop);
     }
