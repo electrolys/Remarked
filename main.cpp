@@ -351,6 +351,11 @@ public:
 
             gr.remove_link(e.x,e.y+gr.y_scroll-y);
             state = LINK_SEL;
+
+            fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
+            gr.redraw(sel_x,sel_y,sel_w,sel_h);
+            buf_back = get_fb_area(fb,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+            
             break;
           }
           unselect();
@@ -384,7 +389,7 @@ public:
           gr.cut(e.x,e.y+gr.y_scroll-y,select_width*8,selection);
           break;
         case MOVE_SEL:
-          if (px < 0 || lensq(e.x-px,e.y-py) > 32){
+          if (px < 0 || lensq(e.x-px,e.y-py) > 4){
             if (px >= 0) {
               undraw_sel();
               sel_x += e.x-px;
@@ -400,11 +405,16 @@ public:
           }
           break;
         case LINK_SEL:
-          if (px < 0 || lensq(e.x-px,e.y-py) > 32){
+          if (px < 0 || lensq(e.x-px,e.y-py) > 4){
             if (px >= 0) {
               undraw_sel();            
               sel_x += e.x-px;
               sel_y += e.y-py;
+              sel_x = max(sel_x,0);
+              sel_y = max(sel_y,gr.y_scroll);
+              sel_x = min(sel_x,w-sel_w);
+              sel_y = min(sel_y,gr.y_scroll+h-sel_h);
+              get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
               fb->draw_text(sel_x,sel_y-gr.y_scroll+y,sel_name,link_size);
             }
             px = e.x;
@@ -447,6 +457,7 @@ public:
           state = NUL_ST;
           sel_x = -1;
           rerender();
+          delete buf_back;
           break;
         case LINK:
           kb.set_text("");
@@ -617,7 +628,7 @@ ui::Button* tool_button(NoteBook* N,ui::RangeInput* range,int id,const char* ch,
     N->fb->draw_rect(N->tool*32,tool_height,32,4,WHITE,true);
     N->fb->draw_rect(id*32,tool_height,32,4,BLACK,true);
     N->tool = id;
-    range->set_value(*var); 
+    range->set_value(*var);
     range->dirty = 1;
   }; 
 
