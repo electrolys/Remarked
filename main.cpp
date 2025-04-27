@@ -65,20 +65,7 @@ public:
     int sel_x=-1,sel_y=-1,sel_w=-1,sel_h=-1;
     bool no_select = false;
 
-    void unselect() {
-      if (sel_x >= 0) {
-        for (stroke& s : selection) {
-          s.ax += sel_x;
-          s.bx += sel_x;
-          s.ay += sel_y;
-          s.by += sel_y;
-          gr.add(s);
-        }
-        sel_x = -1;
-        selection.clear();
-        dirty = 1;     
-      }
-    }
+    
     
     void load(std::string file = "Home",int page = 0){
       unselect();
@@ -172,57 +159,9 @@ public:
 
     
 
-    void set_sel_bounds() {
-      int xmax = 0, ymax = 0;
-      
-      if (!selection.size()) {sel_x = -1;return;}
-
-      for (stroke& s : selection) {
-        if (sel_x == -1 ) {
-          sel_x = min(s.ax-s.width/2,s.bx-s.width/2);
-          sel_y = min(s.ay-s.width/2,s.by-s.width/2);
-          xmax = max(s.ax+s.width/2,s.bx+s.width/2);
-          ymax = max(s.ay+s.width/2,s.by+s.width/2);
-        } else {
-          sel_x = min(min(s.ax-s.width/2,sel_x),s.bx-s.width/2);
-          sel_y = min(min(s.ay-s.width/2,sel_y),s.by-s.width/2);
-          xmax = max(max(s.ax+s.width/2,xmax),s.bx+s.width/2);
-          ymax = max(max(s.ay+s.width/2,ymax),s.by+s.width/2);
-        }
-      }
-       
-      sel_w = xmax - sel_x + 4;
-      sel_h = ymax - sel_y + 4;
-      sel_x -= 2;
-      sel_y -= 2;
-      for (stroke& s : selection) {
-        s.ax = s.ax - sel_x;
-        s.ay = s.ay - sel_y; 
-        s.bx = s.bx - sel_x;
-        s.by = s.by - sel_y;
-      }
-      sel_x = max(sel_x,0);
-      
-    }
     
-    void draw_sel() {
-      if (sel_x >= 0){
-        for (stroke& s : selection)
-          s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
-        fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
-        dirty = 0;
-      }
-    }
-    void undraw_sel() {
-      fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
-      if (lines) {
-        int y_s = ((sel_y-1) / lines + 1) * lines;
-        for (int i = y_s ; i < sel_y + sel_h; i+=lines)
-          fb->draw_line(sel_x,i-gr.y_scroll+y,sel_x+sel_w,i-gr.y_scroll+y,1,color::SCALE_16[8]);
-      }
-      gr.redraw(sel_x,sel_y,sel_w,sel_h);
-    }
-
+    
+    
     stroke prev_stroke;
 
     bool merge_if_inline(stroke& a, stroke& b){
@@ -297,6 +236,96 @@ public:
     int state = 0;
     std::string sel_name;
     file_link* prev_link;
+
+    remarkable_color *buf_sel = nullptr, *buf_back = nullptr;
+
+    void set_sel_bounds() {
+      int xmax = 0, ymax = 0;
+      
+      if (!selection.size()) {sel_x = -1;return;}
+
+      for (stroke& s : selection) {
+        if (sel_x == -1 ) {
+          sel_x = min(s.ax-s.width/2,s.bx-s.width/2);
+          sel_y = min(s.ay-s.width/2,s.by-s.width/2);
+          xmax = max(s.ax+s.width/2,s.bx+s.width/2);
+          ymax = max(s.ay+s.width/2,s.by+s.width/2);
+        } else {
+          sel_x = min(min(s.ax-s.width/2,sel_x),s.bx-s.width/2);
+          sel_y = min(min(s.ay-s.width/2,sel_y),s.by-s.width/2);
+          xmax = max(max(s.ax+s.width/2,xmax),s.bx+s.width/2);
+          ymax = max(max(s.ay+s.width/2,ymax),s.by+s.width/2);
+        }
+      }
+       
+      sel_w = xmax - sel_x + 4;
+      sel_h = ymax - sel_y + 4;
+      sel_x -= 2;
+      sel_y -= 2;
+      for (stroke& s : selection) {
+        s.ax = s.ax - sel_x;
+        s.ay = s.ay - sel_y; 
+        s.bx = s.bx - sel_x;
+        s.by = s.by - sel_y;
+      }
+      sel_x = max(sel_x,0);
+
+      fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
+      for (stroke& s : selection)
+        s.draw(fb,gr.y_scroll,y,sel_x,sel_y);
+      fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, BLACK, false);
+      buf_sel = get_fb_area(fb,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+
+      fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
+      if (lines) {
+        int y_s = ((sel_y-1) / lines + 1) * lines;
+        for (int i = y_s ; i < sel_y + sel_h; i+=lines)
+          fb->draw_line(sel_x,i-gr.y_scroll+y,sel_x+sel_w,i-gr.y_scroll+y,1,color::SCALE_16[8]);
+      }
+      gr.redraw(sel_x,sel_y,sel_w,sel_h);
+      buf_back = get_fb_area(fb,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+      
+    }
+    void draw_sel() {
+      if (sel_x >= 0){
+        get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+        set_fb_area(fb,buf_sel,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+        dirty = 0;
+      }
+    }
+    void undraw_sel() {
+      if (sel_x >= 0) {
+        set_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+      }
+      // fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
+      // if (lines) {
+        // int y_s = ((sel_y-1) / lines + 1) * lines;
+        // for (int i = y_s ; i < sel_y + sel_h; i+=lines)
+          // fb->draw_line(sel_x,i-gr.y_scroll+y,sel_x+sel_w,i-gr.y_scroll+y,1,color::SCALE_16[8]);
+      // }
+      // gr.redraw(sel_x,sel_y,sel_w,sel_h);
+    }
+
+    void unselect() {
+      if (sel_x >= 0) {
+        
+        delete buf_sel;
+        delete buf_back;
+        buf_sel = buf_back = nullptr;
+        
+        for (stroke& s : selection) {
+          s.ax += sel_x;
+          s.bx += sel_x;
+          s.ay += sel_y;
+          s.by += sel_y;
+          gr.add(s);
+        }
+        sel_x = -1;
+        selection.clear();
+        dirty = 1;   
+      }
+    }
+
     void start_stroke(int tool,input::SynMotionEvent& e) {
       px = py = -1;
       state = tool;
@@ -394,6 +423,7 @@ public:
           break;
         case SELECT:
           set_sel_bounds();
+          
           draw_sel();
           state = NUL_ST;
           break;
@@ -643,6 +673,7 @@ struct SettingsStuff {
       }; 
       scene->add(b);
     }
+    
     {
       ui::Button* b = new ui::Button(w-128,h-tool_height,128,tool_height,"Exit");
       b->mouse.click += [=] (input::SynMotionEvent&) {

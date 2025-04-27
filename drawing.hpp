@@ -209,3 +209,30 @@ inline void my_draw_line_horiz(framebuffer::FB* fb,int x0,int y0,int x1,int y1,i
       }
 }
 
+
+
+
+void get_fb_area(framebuffer::FB* fb,remarkable_color* out,int x,int y,int w,int h) {
+  for (int i = 0 ; i < w*h ; i++)
+    out[i] = WHITE;
+  if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
+  for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
+    memcpy(&out[(i-y)*w-min(0,x)], &fb->fbmem[i*fb->width +max(x,0)] , min(min(w,x+w),fb->width-x)*sizeof(remarkable_color));
+}
+
+remarkable_color* get_fb_area(framebuffer::FB* fb,int x,int y,int w,int h) {
+  remarkable_color* t = new remarkable_color[w*h];
+  get_fb_area(fb,t,x,y,w,h);
+  return t;
+}
+
+
+void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h) {
+  if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
+  for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
+    memcpy(&fb->fbmem[i*fb->width +max(x,0)],&buf[(i-y)*w-min(0,x)] , min(min(w,x+w),fb->width-x)*sizeof(remarkable_color));
+  fb->update_dirty(fb->dirty_area,max(x,0),max(y,0));
+  fb->update_dirty(fb->dirty_area,min(x+w,fb->width),min(y+h,fb->height));
+  fb->dirty = 1;
+}
+
