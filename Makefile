@@ -5,7 +5,7 @@ CUSTOM_VARS=-DREMARKABLE=1 -s -pthread -lpthread
 bin/remarked: obj/sqlite3.c.o obj/main.cpp.o obj/rmkit.h.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(CUSTOM_VARS)
 
-obj/main.cpp.o: main.cpp rmkit.h sqlite3.h common.hpp drawing.hpp grid.hpp 
+obj/main.cpp.o: main.cpp rmkit.h sqlite3.h common.hpp drawing.hpp grid.hpp assets.h
 	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -o obj/main.cpp.o main.cpp 
 
 obj/sqlite3.c.o: sqlite3.c sqlite3.h

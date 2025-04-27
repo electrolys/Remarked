@@ -1,0 +1,20 @@
+#!/bin/bash
+
+DEST="assets.h"
+ASSET_DIR="assets/"
+SUB_ASSET_DIR=${ASSET_DIR/\//_}
+
+ASSETSH=${DEST}
+FILES=`find ${ASSET_DIR} -type f`
+
+echo ${DEST}
+
+echo "#pragma once" > ${ASSETSH}
+echo "namespace assets {" >> ${ASSETSH}
+
+for ASSET in ${FILES}; do
+  echo "xxd -i ${ASSET} | sed 's/${SUB_ASSET_DIR}//'>> ${ASSETSH}"
+  xxd -i ${ASSET} | sed 's/'${SUB_ASSET_DIR}'//g; s/unsigned/static unsigned/'>> ${ASSETSH}
+done
+
+echo "};" >> ${ASSETSH}

@@ -1,6 +1,20 @@
-MIT License
 
+
+
+Phosphor Icons : MIT License : github.com/phosphor-icons/core
+Copyright (c) 2023 Phosphor Icons
+
+Remarked : MIT License : github.com/electrolys/Remarked
 Copyright (c) 2025 Austin P.
+
+RMKit : MIT License : github.com/rmkit-dev/rmkit
+Copyright (c) ??? (Couldn't find it on the github)
+
+Components of RMKit have varying licenses in the source of rmkit.h.
+
+SQLite3 : Public Domain : www.sqlite.org
+
+MIT License
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21,4 +35,4 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
 
-NOTE: In rmkit.h there are licenses for various parts that make up its code.
+

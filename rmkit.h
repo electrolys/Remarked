@@ -23335,7 +23335,7 @@ namespace ui {
       auto has_icon = false;
       auto has_text = false;
       if (this->icon.data != NULL) {
-        this->iconWidget = make_shared<Pixmap>(0, 0, 20, 20, icon);
+        this->iconWidget = make_shared<Pixmap>(0, 0, 32, 32, icon);
         has_icon = true; }
       if (this->textWidget != nullptr) {
         this->textWidget->restore_coords();

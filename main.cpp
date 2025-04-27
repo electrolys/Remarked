@@ -4,6 +4,7 @@
 
 #include <chrono>
 
+#include "assets.h"
 
 #include "drawing.hpp"
 #include "common.hpp"
@@ -91,11 +92,11 @@ public:
     
     
     NoteBook(int w,int h,int y) : ui::Widget(0,y,w,h){
-        pagenum = new ui::Button(w-160,0,160,y,"Home:1");
+        pagenum = new ui::Button(w-160-64,0,160,y,"Home:1");
         
 
         pagenum->mouse.click += [this] (input::SynMotionEvent&){
-          load();
+          load(gr.current_file);
           rerender();
         };
         gr.init(w,h,y,fb);
@@ -392,7 +393,6 @@ public:
               sel_y = max(sel_y,gr.y_scroll);
               sel_x = min(sel_x,w-sel_w);
               sel_y = min(sel_y,gr.y_scroll+h-sel_h);
-                            
               draw_sel();
             }
             px = e.x;
@@ -601,18 +601,27 @@ public:
 
 
 
-ui::Button* tool_button(NoteBook* N,ui::RangeInput* range,int id,const char* ch) {
+ui::Button* tool_button(NoteBook* N,ui::RangeInput* range,int id,const char* ch, icons::Icon icon) {
   ui::Button* b = new ui::Button(id*32,0,32,tool_height,ch);
-  b->mouse.click += [N, id, range] (input::SynMotionEvent&){
+  b->icon = icon;
+  b->text = "";
+
+  int* var = &N->width;
+
+  switch (id) {
+    case ERASER: var = &N->eraser_width; break;
+    case SELECT: var = &N->select_width; break;
+  }
+  
+  b->mouse.click += [N, id, range, var] (input::SynMotionEvent&){
     N->fb->draw_rect(N->tool*32,tool_height,32,4,WHITE,true);
     N->fb->draw_rect(id*32,tool_height,32,4,BLACK,true);
     N->tool = id;
-    switch (N->tool) {
-      case DRAW: range->set_value(N->width); range->dirty = 1; break;
-      case ERASER: range->set_value(N->eraser_width); range->dirty = 1; break;
-      case SELECT: range->set_value(N->select_width); range->dirty = 1; break;
-    }
+    range->set_value(*var); 
+    range->dirty = 1;
   }; 
+
+  
   return b;
 }
 
@@ -701,7 +710,9 @@ struct SettingsStuff {
       N->fb->clear_screen();
       N->refresh_screen();
       
-    };  
+    };
+    b->text = "";
+    b->icon = ICON(assets::fa_Cog_png);
     return b;
   }
   
@@ -730,24 +741,28 @@ int main(int,char**){
     
    
     {
-      ui::Button* b = new ui::Button(160,0,32,tool_height,"X");
+      ui::Button* b = new ui::Button(160,0,32,tool_height,"Cut");
       b->mouse.click += [=] (input::SynMotionEvent&){
         N->gr.save();
         N->gr.move(N->gr.current_file,N->gr.current_page,"Copies",0);
         N->load(N->gr.current_file,N->gr.current_page);
         N->rerender();
       }; 
+      b->text = "";
+      b->icon = ICON(assets::fa_Cut_png);
       scene->add(b);
     }
     
     {
-      ui::Button* b = new ui::Button(192,0,32,tool_height,"V");
+      ui::Button* b = new ui::Button(192,0,32,tool_height,"Paste");
       b->mouse.click += [=] (input::SynMotionEvent&){
         N->gr.save();
         N->gr.move("Copies",0,N->gr.current_file,N->gr.current_page);
         N->load(N->gr.current_file,N->gr.current_page);
         N->rerender();
-      }; 
+      };
+      b->text = "";
+      b->icon = ICON(assets::fa_Paste_png); 
       scene->add(b);
     }
     
@@ -775,14 +790,25 @@ int main(int,char**){
       };
       scene->add( range );
 
-      scene->add(tool_button(N,range,DRAW,"W"));
-      scene->add(tool_button(N,range,ERASER,"E"));
-      scene->add(tool_button(N,range,SELECT,"S"));
-      scene->add(tool_button(N,range,LINK,"+"));
+      scene->add(tool_button(N,range,DRAW,"Pen",ICON(assets::fa_Pen_png)));
+      scene->add(tool_button(N,range,ERASER,"Erase",ICON(assets::fa_Erase_png)));
+      scene->add(tool_button(N,range,SELECT,"Select",ICON(assets::fa_Select_png)));
+      scene->add(tool_button(N,range,LINK,"Link",ICON(assets::fa_Link_png)));
     }
 
     SettingsStuff settings(N,scene,w,h);
-    scene->add( settings.settings_button(w-160-128,0,128,tool_height,N));
+    scene->add( settings.settings_button(w-32,0,32,tool_height,N));
+
+    {
+      ui::Button* b = new ui::Button(w-64,0,32,tool_height,"Home");
+      b->mouse.click += [=] (input::SynMotionEvent&){
+        N->load();
+        N->rerender();
+      };
+      b->text = "";
+      b->icon = ICON(assets::fa_Home_png); 
+      scene->add(b);
+    }
 
     {
       ui::TextDropdown* drop = new ui::TextDropdown(368, 0, 128, tool_height, pen_names[N->pen_type]);
