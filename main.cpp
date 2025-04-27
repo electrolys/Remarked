@@ -289,7 +289,7 @@ public:
     void draw_sel() {
       if (sel_x >= 0){
         get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
-        set_fb_area(fb,buf_sel,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
+        set_fb_area(fb,buf_sel,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h,WHITE);
         dirty = 0;
       }
     }
@@ -388,6 +388,11 @@ public:
               undraw_sel();
               sel_x += e.x-px;
               sel_y += e.y-py;
+              sel_x = max(sel_x,0);
+              sel_y = max(sel_y,gr.y_scroll);
+              sel_x = min(sel_x,w-sel_w);
+              sel_y = min(sel_y,gr.y_scroll+h-sel_h);
+                            
               draw_sel();
             }
             px = e.x;

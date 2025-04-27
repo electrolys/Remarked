@@ -217,7 +217,8 @@ void get_fb_area(framebuffer::FB* fb,remarkable_color* out,int x,int y,int w,int
     out[i] = WHITE;
   if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
   for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
-    memcpy(&out[(i-y)*w-min(0,x)], &fb->fbmem[i*fb->width +max(x,0)] , min(min(w,x+w),fb->width-x)*sizeof(remarkable_color));
+    for (int j = max(x,0); j < min(x+w,fb->width-1); j++)
+      out[w*(i-y)+(j-x)] = fb->fbmem[i*fb->width + j];
 }
 
 remarkable_color* get_fb_area(framebuffer::FB* fb,int x,int y,int w,int h) {
@@ -230,7 +231,19 @@ remarkable_color* get_fb_area(framebuffer::FB* fb,int x,int y,int w,int h) {
 void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h) {
   if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
   for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
-    memcpy(&fb->fbmem[i*fb->width +max(x,0)],&buf[(i-y)*w-min(0,x)] , min(min(w,x+w),fb->width-x)*sizeof(remarkable_color));
+    for (int j = max(x,0); j < min(x+w,fb->width-1); j++)
+      fb->fbmem[i*fb->width + j] = buf[w*(i-y)+(j-x)];
+  fb->update_dirty(fb->dirty_area,max(x,0),max(y,0));
+  fb->update_dirty(fb->dirty_area,min(x+w,fb->width),min(y+h,fb->height));
+  fb->dirty = 1;
+}
+
+void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h,remarkable_color cutout) {
+  if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
+  for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
+    for (int j = max(x,0); j < min(x+w,fb->width-1); j++)
+      if (buf[w*(i-y)+j-x] != cutout)
+        fb->fbmem[i*fb->width + j] = buf[w*(i-y)+(j-x)];
   fb->update_dirty(fb->dirty_area,max(x,0),max(y,0));
   fb->update_dirty(fb->dirty_area,min(x+w,fb->width),min(y+h,fb->height));
   fb->dirty = 1;
