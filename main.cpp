@@ -79,9 +79,12 @@ public:
 
       sql_run(gr.write_d,"sisi",file.c_str(),-1,"last_page",page);
 
-      sql_geti(gr.read_d,"sis",lines,file.c_str(),page,"vert_lines");
-      sql_run(gr.write_d,"sisi",file.c_str(),page,"vert_lines",lines);//This write makes sure that all pages that get loaded keep their lines value even if you access the file in a different way later
-
+      if (!sql_geti(gr.read_d,"sis",lines,file.c_str(),page,"vert_lines")){
+        if (!sql_geti(gr.read_d,"sis",lines,file.c_str(),0,"vert_lines")){
+          sql_run(gr.write_d,"sisi",file.c_str(),0,"vert_lines",lines);
+        }
+      }
+      
       int b;
       if (sql_geti(gr.read_d,"sis",b,file.c_str(),-1,"RTL")){
         rtl = b;
@@ -706,7 +709,7 @@ struct SettingsStuff {
       scene->add(b);
     }
     {
-      ui::RangeInput* range = new ui::RangeInput(w-128, tool_height*1, 123, tool_height);
+      ui::RangeInput* range = new ui::RangeInput(w-256+85, tool_height*1, 123, tool_height);
       range->set_range(0, 15);
       range->set_value(N->lines/10);
       range->events.change += [=] (float){
@@ -717,7 +720,18 @@ struct SettingsStuff {
       scene->add( range );
 
 
-      ui::Text* text = new ui::Text(w-256,tool_height*1+10,123,tool_height,"Rule");
+      ui::Button* b = new ui::Button(w-128+85,tool_height*1,43,tool_height,"Def");
+      b->mouse.click += [=] (input::SynMotionEvent&) {
+        sql_run(N->gr.del_d,"sis",N->gr.current_file.c_str(),N->gr.current_page,"vert_lines");
+        if (!sql_geti(N->gr.read_d,"sis",N->lines,N->gr.current_file.c_str(),0,"vert_lines")){
+          sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),0,"vert_lines",N->lines);
+        }
+        
+        range->set_value(N->lines/10);
+      }; 
+      scene->add(b);
+
+      ui::Text* text = new ui::Text(w-256,tool_height*1+10,80,tool_height,"Rule");
       scene->add(text);
     }
     {

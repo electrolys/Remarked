@@ -91,6 +91,10 @@ const char* clear_link_str =
 const char* clear_dat_str =
 "delete from page_data where file=? and page=?;";
 
+const char* del_dat_str =
+"delete from page_data where file=? and page=? and key=?;";
+
+
 const char* init_st_str = 
 "PRAGMA synchronous = OFF;\n"
 "PRAGMA journal_mode = MEMORY;\n"
@@ -138,8 +142,9 @@ struct grid{
   sqlite3* db = nullptr;
   sqlite3_stmt* read_s, *write_s, *clear_s, *shift_s, *page_s;
   sqlite3_stmt* read_l, *write_l, *clear_l, *shift_l, *page_l;
-  sqlite3_stmt* read_d, *write_d, *clear_d, *shift_d, *page_d;
+  sqlite3_stmt* read_d, *write_d, *clear_d, *shift_d, *page_d, *del_d;
 
+  
   void move(std::string from, int from_page, std::string to, int to_page) {
     if (from == to) {
       sql_run(page_s,"sisi",from.c_str(),abs(from_page),to.c_str(),-1);
@@ -213,6 +218,8 @@ struct grid{
     prepare(setpage_st_str,page_s);
     prepare(setpage_link_str,page_l);
     prepare(setpage_dat_str,page_d);
+    
+    prepare(del_dat_str,del_d);
 
     #undef prepare
 
@@ -424,6 +431,7 @@ struct grid{
         
     edited = true;
   }
+  
   void redraw(int x,int y,int w,int h){
     int end_i = (x+w)/row_w;
     int end_j = (y+h)/row_h;
