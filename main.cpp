@@ -62,7 +62,9 @@ public:
       render();
     }
 
-    std::vector<stroke> selection;
+    std::vector<stroke> selection, clipboard;
+    bool clipboard_full = false;
+    
     int sel_x=-1,sel_y=-1,sel_w=-1,sel_h=-1;
     bool no_select = false;
 
@@ -337,6 +339,28 @@ public:
             state = MOVE_SEL;
             break;
           }
+          if (clipboard_full) {
+            if (e.y > y+h-link_size-5){
+              if (e.x < w/2){
+                unselect();
+                dirty = 1;
+                selection = clipboard;
+                set_sel_bounds();
+                sel_x = e.x - sel_w/2;
+                sel_y = e.y+gr.y_scroll-y - sel_h/2;
+                draw_sel();
+                state = MOVE_SEL;
+                break;
+              } else {
+                unselect();
+                clipboard.clear();
+                clipboard_full = false;
+                dirty = 1;
+                state = NUL_ST;
+                break;
+              }
+            }
+          }
           if (sel_x >= 0){
             state = UNDO_SEL;
             break;
@@ -449,6 +473,15 @@ public:
           break;
         
         case MOVE_SEL:
+          if (py > y+h-link_size-5) {
+            clipboard = selection;
+            clipboard_full = true;
+            dirty = 1;
+            selection.clear();
+            unselect();
+            rerender();
+            
+          }
           state = NUL_ST;
           break;
         case LINK_SEL:
@@ -600,6 +633,13 @@ public:
         fb->draw_rect(tool*32,tool_height,32,4,BLACK,true);
 
         draw_sel();
+
+        if (clipboard_full) {
+          fb->draw_rect(0,y+h-link_size,w,1,BLACK,true);
+          fb->draw_rect(0,y+h-link_size,w,link_size,WHITE,true);
+          fb->draw_text(w/4-20,y+h-link_size,"[Paste]",link_size);
+          fb->draw_text(w/2+w/4+20,y+h-link_size,"[Clear]",link_size);
+        }
         
         fb->dirty = 1;
         fb->waveform_mode = WAVEFORM_MODE_GC16;
