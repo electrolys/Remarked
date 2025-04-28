@@ -65,7 +65,7 @@ public:
     std::vector<stroke> selection, clipboard;
     bool clipboard_full = false;
     
-    int sel_x=-1,sel_y=-1,sel_w=-1,sel_h=-1;
+    int sel_x=-1,sel_y=-1,sel_w=0,sel_h=0;
     bool no_select = false;
 
     
@@ -245,14 +245,15 @@ public:
     void set_sel_bounds() {
       int xmax = 0, ymax = 0;
       
-      if (!selection.size()) {sel_x = -1;return;}
+      if (!selection.size()) {sel_w = 0;return;}
 
       for (stroke& s : selection) {
-        if (sel_x == -1 ) {
+        if (!sel_w) {
           sel_x = min(s.ax-s.width/2,s.bx-s.width/2);
           sel_y = min(s.ay-s.width/2,s.by-s.width/2);
           xmax = max(s.ax+s.width/2,s.bx+s.width/2);
           ymax = max(s.ay+s.width/2,s.by+s.width/2);
+          sel_w = 1;
         } else {
           sel_x = min(min(s.ax-s.width/2,sel_x),s.bx-s.width/2);
           sel_y = min(min(s.ay-s.width/2,sel_y),s.by-s.width/2);
@@ -271,7 +272,6 @@ public:
         s.bx = s.bx - sel_x;
         s.by = s.by - sel_y;
       }
-      sel_x = max(sel_x,0);
 
       fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
       for (stroke& s : selection)
@@ -290,14 +290,14 @@ public:
       
     }
     void draw_sel() {
-      if (sel_x >= 0){
+      if (sel_w){
         get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
         set_fb_area(fb,buf_sel,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h,WHITE);
         dirty = 0;
       }
     }
     void undraw_sel() {
-      if (sel_x >= 0) {
+      if (sel_w) {
         set_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
       }
       // fb->draw_rect(sel_x, sel_y-gr.y_scroll+y, sel_w, sel_h, WHITE, true);
@@ -310,7 +310,7 @@ public:
     }
 
     void unselect() {
-      if (sel_x >= 0) {
+      if (sel_w) {
         
         delete buf_sel;
         delete buf_back;
@@ -323,7 +323,7 @@ public:
           s.by += sel_y;
           gr.add(s);
         }
-        sel_x = -1;
+        sel_w = 0;
         selection.clear();
         dirty = 1;   
       }
@@ -335,15 +335,18 @@ public:
       file_link* l;
       switch (state) {
         case SELECT:
-          if (sel_x >= 0 && e.x < sel_x+sel_w && e.x >= sel_x && e.y+gr.y_scroll-y < sel_y+sel_h && e.y+gr.y_scroll-y >= sel_y){
+          if (sel_w && e.x < sel_x+sel_w && e.x >= sel_x && e.y+gr.y_scroll-y < sel_y+sel_h && e.y+gr.y_scroll-y >= sel_y){
             state = MOVE_SEL;
             break;
           }
           if (clipboard_full) {
             if (e.y > y+h-link_size-5){
               if (e.x < w/2){
-                unselect();
                 dirty = 1;
+                if (sel_w){
+                  unselect();
+                  rerender();
+                }
                 selection = clipboard;
                 set_sel_bounds();
                 sel_x = e.x - sel_w/2;
@@ -352,16 +355,20 @@ public:
                 state = MOVE_SEL;
                 break;
               } else {
-                unselect();
-                clipboard.clear();
-                clipboard_full = false;
                 dirty = 1;
+                clipboard_full = false;                
+                clipboard.clear();
+
+                if (sel_w){
+                  unselect();
+                  rerender();
+                }
                 state = NUL_ST;
                 break;
               }
             }
           }
-          if (sel_x >= 0){
+          if (sel_w){
             state = UNDO_SEL;
             break;
           }
@@ -389,7 +396,7 @@ public:
             state = REM_LINK;
           }
         default:
-          if (sel_x >= 0) {
+          if (sel_w) {
             unselect();
             rerender();
           }
@@ -418,10 +425,6 @@ public:
               undraw_sel();
               sel_x += e.x-px;
               sel_y += e.y-py;
-              sel_x = max(sel_x,0);
-              sel_y = max(sel_y,gr.y_scroll);
-              sel_x = min(sel_x,w-sel_w);
-              sel_y = min(sel_y,gr.y_scroll+h-sel_h);
               draw_sel();
             }
             px = e.x;
@@ -434,10 +437,6 @@ public:
               undraw_sel();            
               sel_x += e.x-px;
               sel_y += e.y-py;
-              sel_x = max(sel_x,0);
-              sel_y = max(sel_y,gr.y_scroll);
-              sel_x = min(sel_x,w-sel_w);
-              sel_y = min(sel_y,gr.y_scroll+h-sel_h);
               get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
               fb->draw_text(sel_x,sel_y-gr.y_scroll+y,sel_name,link_size);
             }

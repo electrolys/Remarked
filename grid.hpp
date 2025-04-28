@@ -408,18 +408,19 @@ struct grid{
 
 
   void remove(int x,int y,int r){
-    int end_i = (x+r+1)/row_w;
-    int end_j = (y+r+1)/row_h;
-    for (int j = (y-r-1)/row_h;j<=end_j;j++)
-      for (int i = (x-r-1)/row_w;i<=end_i;i++)
-        if (j < (int)rows.size())
-          for (int k = rows[j].vect[i].size()-1 ; k>= 0; k--){
-            stroke& st = rows.at(j).vect[i].at(k);
-            if (lensq(st.ax-x,st.ay-y) <= r*r) {
-              st.undraw(fb,y_scroll,this->y);
-              rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
-            }
+    int end_i = min((x+r+1)/row_w,15);
+    int end_j = min((y+r+1)/row_h,rows.size()-1);
+    int start_i = max((x-r-1)/row_w,0);
+    int start_j = max((y-r-1)/row_h,0);
+    for (int j = start_j;j<=end_j;j++)
+      for (int i = start_i;i<=end_i;i++)
+        for (int k = rows[j].vect[i].size()-1 ; k>= 0; k--){
+          stroke& st = rows.at(j).vect[i].at(k);
+          if (lensq(st.ax-x,st.ay-y) <= r*r) {
+            st.undraw(fb,y_scroll,this->y);
+            rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
           }
+        }
         
     edited = true;
   }
@@ -447,19 +448,21 @@ struct grid{
   }
 
   void cut(int x,int y,int r,std::vector<stroke>& out){
-    int end_i = (x+r+1)/row_w;
-    int end_j = (y+r+1)/row_h;
-    for (int j = (y-r-1)/row_h;j<=end_j;j++)
-      for (int i = (x-r-1)/row_w;i<=end_i;i++)
-        if (j < (int)rows.size())
-          for (int k = rows[j].vect[i].size()-1 ; k>= 0; k--){
-            stroke& st = rows.at(j).vect[i].at(k);
-            if (lensq(st.ax-x,st.ay-y) <= r*r) {
-              out.push_back(st);
-              st.undraw(fb,y_scroll,this->y);
-              rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
-            }
+    int end_i = min((x+r+1)/row_w,15);
+    int end_j = min((y+r+1)/row_h,rows.size()-1);
+
+    int start_i = max((x-r-1)/row_w,0);
+    int start_j = max((y-r-1)/row_h,0);
+    for (int j = start_j;j<=end_j;j++)
+      for (int i = start_i;i<=end_i;i++)
+        for (int k = rows[j].vect[i].size()-1 ; k>= 0; k--){
+          stroke& st = rows.at(j).vect[i].at(k);
+          if (lensq(st.ax-x,st.ay-y) <= r*r) {
+            out.push_back(st);
+            st.undraw(fb,y_scroll,this->y);
+            rows[j].vect[i].erase(rows[j].vect[i].begin()+k);
           }
+        }
     edited = true;
   }
 };
