@@ -84,6 +84,7 @@ public:
     enum {
       NO_EXT = 0,
       TXT_EXT,
+      PDF_EXT,
     };
 
     int ext_mode = NO_EXT;
@@ -97,10 +98,12 @@ public:
       
       switch (file[0]) {
         case '@': {
+          ext_mode = TXT_EXT;
           std::string ext = get_file_ext(file);
-          if (ext == "txt" || ext == "tav" || ext == "c" || ext == "h" || ext == "cpp" || ext == "hpp"){
-            ext_mode = TXT_EXT;
-          }
+          if (ext == "pdf")
+            ext_mode = PDF_EXT;
+          if (ext == "" || ext == "bin")
+            ext_mode = NO_EXT;
         } break;
       }
 
