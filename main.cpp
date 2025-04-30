@@ -28,6 +28,18 @@ const int LINK = 3;
 
 const int tool_height = 48;
 
+
+std::string get_file_ext(const std::string& FileName) 
+{
+    std::size_t last_dot = FileName.find_last_of(".");
+    if(last_dot != std::string::npos){
+      std::size_t last_slash = FileName.find_last_of("/");
+      if (last_slash != std::string::npos && last_slash > last_dot) return "";
+      return FileName.substr(last_dot+1);
+    }
+    return "";
+}
+
 class NoteBook: public ui::Widget{
 public:
     int px = -1,py = -1,tool = DRAW,block_touch = 0;
@@ -68,9 +80,64 @@ public:
     int sel_x=-1,sel_y=-1,sel_w=0,sel_h=0;
     bool no_select = false;
 
-    
+
+    enum {
+      NO_EXT = 0,
+      TXT_EXT,
+    };
+
+    int ext_mode = NO_EXT;
+
+
+    std::vector<std::string> text_lines;
     
     void load(std::string file = "Home",int page = 0){
+
+      ext_mode = NO_EXT;
+      
+      switch (file[0]) {
+        case '@': {
+          std::string ext = get_file_ext(file);
+          if (ext == "txt" || ext == "tav" || ext == "c" || ext == "h" || ext == "cpp" || ext == "hpp"){
+            ext_mode = TXT_EXT;
+          }
+        } break;
+      }
+
+      text_lines.clear();
+      switch (ext_mode) {
+        case TXT_EXT:
+          if (page > 0) { // I want the first page to always be empty so you can have a convenient place to put links to other parts of the document
+            std::string t = "/home/root/" + file.substr(1);
+            FILE* f = fopen(t.c_str(),"rb");
+            fseek(f,sizeof(char)*2900*(page-1),SEEK_SET);
+
+            int cnum = 0;
+            if (page > 1)
+              for (int c = fgetc(f); !(c == '\n' || c == EOF || cnum == 100); c = fgetc(f), cnum++){}
+            
+            std::string line = "";
+            for (int c = fgetc(f) ; ; c = fgetc(f), cnum++ ) {
+              if (c == EOF || cnum == 3000 || (cnum >= 2900 && (c == '\n'))) {
+                text_lines.push_back(line);
+                break;
+              }
+
+              if (c == '\n') {
+                text_lines.push_back(line);
+                line = "";
+                continue;
+              }
+
+              line += (char)c;
+            }
+
+            fclose(f);
+          }
+          
+          break;
+      }
+      
       unselect();
       pagenum->undraw();
       pagenum->text = file+":"+std::to_string(abs(page)+1);
@@ -490,7 +557,7 @@ public:
           gr.add_link(sel_x,sel_y,sel_name);
           sel_name = "";
           state = NUL_ST;
-          sel_x = -1;
+          sel_w = 0;
           rerender();
           delete buf_back;
           break;
@@ -545,12 +612,6 @@ public:
     
 
     void load_link(file_link* l) {
-
-      switch (l->file[0]) {
-        case '@':
-          //load a supplementary file like a .md or .pdf at some point
-          break;
-      }
       
       std::size_t i = l->file.find(":");
 
@@ -637,10 +698,32 @@ public:
         draw_sel();
 
         if (clipboard_full) {
-          fb->draw_rect(0,y+h-link_size,w,1,BLACK,true);
           fb->draw_rect(0,y+h-link_size,w,link_size,WHITE,true);
+          fb->draw_rect(0,y+h-link_size,w,1,BLACK,true);
           fb->draw_text(w/4-20,y+h-link_size,"[Paste]",link_size);
           fb->draw_text(w/2+w/4+20,y+h-link_size,"[Clear]",link_size);
+        }
+
+        
+        switch (ext_mode) {
+          case TXT_EXT:{
+            int num = (w/lines)*2;
+            int off = 0;            
+            // fb->draw_text(0,-gr.y_scroll+y,text_buf,lines);
+            for (int i = 0 ; i < text_lines.size(); i++){
+              std::string t = "  " + text_lines[i];
+start:
+              if (t.length()>num) {
+                int j;
+                for (j = num-10 ; t[j] != ' ' && j <= num; j++){}
+                std::string a = t.substr(0,j);
+                if ((i+off)*lines+5 > gr.y_scroll) fb->draw_text(5,(i+off)*lines-gr.y_scroll+y+5,a,lines-5);
+                t = t.substr(j+1);
+                off++;
+                goto start;
+              } else if ((i+off)*lines+5 > gr.y_scroll) fb->draw_text(5,(i+off)*lines-gr.y_scroll+y+5,t,lines-5);
+            }
+          } break;
         }
         
         fb->dirty = 1;
