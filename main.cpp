@@ -710,7 +710,7 @@ public:
         
         switch (ext_mode) {
           case TXT_EXT:{
-            int num = (w/lines)*2;
+            int num = max((w/lines)*2+5,15);
             int off = 0;            
             // fb->draw_text(0,-gr.y_scroll+y,text_buf,lines);
             for (int i = 0 ; i < text_lines.size(); i++){
@@ -718,7 +718,7 @@ public:
 start:
               if (t.length()>num) {
                 int j;
-                for (j = num-10 ; t[j] != ' ' && j <= num; j++){}
+                for (j = num-15 ; t[j] != ' ' && j < num; j++){}
                 std::string a = t.substr(0,j);
                 if ((i+off)*lines+5 > gr.y_scroll) fb->draw_text(5,(i+off)*lines-gr.y_scroll+y+5,a,lines-5);
                 t = t.substr(j+1);

@@ -1,5 +1,5 @@
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/color.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/color.h */
 
 /* REQUIRES: */
 #ifndef RMKIT_COLOR_H
@@ -135,7 +135,7 @@ inline remarkable_color quantize<16>(float c)
 #endif // RMKIT_COLOR_H
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/fb_info.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h */
 
 /* REQUIRES: */
 #ifndef UI______UI______UI______FB______INPUT______FB__FB_INFO_CPY_H
@@ -152,8 +152,187 @@ namespace framebuffer {
 
 #endif
 
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fbio.h */
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/keycodes.h */
+/* REQUIRES: */
+
+#ifndef BUFFER_UPDATE_H
+#define BUFFER_UPDATE_H
+
+
+#include <linux/fb.h>
+#include <stdint.h>
+
+
+enum {
+  WAVEFORM_MODE_INIT = 0x0,	/* Screen goes to white (clears) */
+  WAVEFORM_MODE_DU =	0x1,	/* Grey->white/grey->black */
+  WAVEFORM_MODE_GC16 =	0x2,	/* High fidelity (flashing) */
+  WAVEFORM_MODE_GC4 =	0x3,	/* Lower fidelity */
+  WAVEFORM_MODE_A2 =	0x4,	/* Fast black/white animation */
+  WAVEFORM_MODE_DU4 = 0x7,
+  WAVEFORM_MODE_REAGLD = 0x9,
+  WAVEFORM_MODE_AUTO = 257,
+};
+
+enum {
+  UPDATE_MODE_PARTIAL = 0,
+  UPDATE_MODE_FULL = 1,
+};
+
+#define TEMP_USE_REMARKABLE_DRAW 0x0018
+#define EPDC_FLAG_EXP1 0x270ce20
+
+
+struct buf_rect {
+	uint32_t top;
+	uint32_t left;
+	uint32_t width;
+	uint32_t height;
+};
+
+struct buf_alt_buffer_data {
+	uint32_t phys_addr;
+	uint32_t width;	/* width of entire buffer */
+	uint32_t height;	/* height of entire buffer */
+	struct buf_rect alt_update_region;	/* region within buffer to update */
+};
+
+struct buf_update_data {
+	struct buf_rect update_region;
+	uint32_t waveform_mode;
+	uint32_t update_mode;
+	uint32_t update_marker;
+	int temp;
+	unsigned int flags;
+	int dither_mode;
+	int quant_bit;
+	struct buf_alt_buffer_data alt_buffer_data;
+};
+
+struct buf_update_marker_data {
+	uint32_t update_marker;
+	uint32_t collision_test;
+};
+
+
+#define BUF_SEND_UPDATE		_IOW('F', 0x2E, struct buf_update_data)
+#define AUTO_UPDATE_MODE_AUTOMATIC_MODE		1
+
+#define BUF_WAIT_FOR_UPDATE_COMPLETE	_IOWR('F', 0x2F, struct buf_update_marker_data)
+#define BUF_SET_AUTO_UPDATE_MODE	_IOW('F', 0x2D, uint32_t)
+
+
+struct buf_update_data_kobo
+{
+	struct buf_rect update_region;
+	/* which waveform to use for the update, du, gc4, gc8 gc16 etc */
+	uint32_t           waveform_mode;
+	uint32_t           update_mode; /* full update or partial update */
+	/* Unique number used by both application
+	 * and driver to identify an update
+	 */
+	uint32_t           update_marker;
+	unsigned int       flags;       /* one or more HWTCON_FLAGs defined above */
+	int                dither_mode; /* one of the dither modes defined above */
+};
+#define BUF_SEND_UPDATE_KOBO		_IOW('F', 0x2E, struct buf_update_data_kobo)
+
+
+#endif
+
+
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/device_id.h */
+
+/* REQUIRES: */
+#ifndef UI______UI______UI______FB______INPUT__DEVICE_ID_CPY_H
+#define UI______UI______UI______FB______INPUT__DEVICE_ID_CPY_H
+#include <linux/input.h>
+#include <sys/ioctl.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
+#include <string>
+
+
+
+#define BITS_PER_LONG (sizeof(long) * 8)
+#define NBITS(x) ((((x)-1)/BITS_PER_LONG)+1)
+#define OFF(x)  ((x)%BITS_PER_LONG)
+#define BIT(x)  (1UL<<OFF(x))
+#define LONG(x) ((x)/BITS_PER_LONG)
+#define test_bit(bit, array)    ((array[LONG(bit)] >> OFF(bit)) & 1)
+
+
+
+
+
+
+
+
+
+
+
+
+namespace input {
+  enum EV_TYPE { TOUCH, STYLUS, BUTTONS, UNKNOWN, INVALID };
+  static bool check_bit_set(int fd, int type, int i) {
+    unsigned long bit[NBITS(KEY_MAX)];
+    ioctl(fd, EVIOCGBIT(type, KEY_MAX), bit);
+    return test_bit(i, bit); }
+
+
+  static EV_TYPE id_by_capabilities(int fd) {
+    int version;
+
+    if (ioctl(fd, EVIOCGVERSION, &version)) {
+      return INVALID; }
+
+    unsigned long bit[EV_MAX];
+    ioctl(fd, EVIOCGBIT(0, EV_MAX), bit);
+
+    if (check_bit_set(fd, EV_ABS, ABS_MT_TRACKING_ID)) {
+      return TOUCH; }
+
+    if (test_bit(EV_KEY, bit)) {
+      if (check_bit_set(fd, EV_KEY, BTN_STYLUS) && test_bit(EV_ABS, bit)) {
+        return STYLUS; }
+      if (check_bit_set(fd, EV_KEY, KEY_POWER)) {
+        return BUTTONS; } }
+
+    if (check_bit_set(fd, EV_KEY, BTN_TOOL_PEN)) {
+      return TOUCH; }
+
+    return UNKNOWN; }
+
+  static bool supports_stylus(int fd) {
+    if (fd <= 0) {
+      return false; }
+
+    unsigned long bit[EV_MAX];
+    ioctl(fd, EVIOCGBIT(0, EV_MAX), bit);
+    if (check_bit_set(fd, EV_KEY, BTN_STYLUS) && test_bit(EV_ABS, bit)) {
+      return true; }
+
+    return false; }
+
+  static EV_TYPE id_by_name(int fd) {
+    char name[256];
+    ioctl(fd, EVIOCGNAME(sizeof(name)), name);
+    auto s = std::string(name);
+    if (s.find("I2C Digitizer") != -1) {
+      return STYLUS; }
+    if (s.find("_mt") != -1) {
+      return TOUCH; }
+    if (s.find("keys") != -1) {
+      return BUTTONS; }
+
+    return UNKNOWN; }; };
+
+#endif
+
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h */
 
 /* REQUIRES: */
 #ifndef UI______UI______INPUT__KEYCODES_CPY_H
@@ -249,7 +428,7 @@ namespace input {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/icons.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/icons.h */
 
 /* REQUIRES: */
 #ifndef UI_ICONS_H
@@ -264,7 +443,7 @@ namespace icons {
 #endif
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/style.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/style.h */
 
 /* REQUIRES: */
 #ifndef STYLE_H
@@ -468,7 +647,7 @@ Style Style::DEFAULT = Stylesheet()
 #endif
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/timer.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h */
 
 /* REQUIRES: */
 #ifndef UI______UI______UI__TIMER_CPY_H
@@ -580,7 +759,7 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/kobo_id.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/kobo_id.h */
 
 /* REQUIRES: */
 #ifndef UTIL__KOBO_ID_CPY_H
@@ -592,7 +771,7 @@ namespace util {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
 
 /* REQUIRES: */
 #ifndef UTIL__RM2FB_CPY_H
@@ -602,7 +781,7 @@ namespace rm2fb {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/signals.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 
 /* REQUIRES: */
 #ifndef UI______UI______UI______FB______UTIL__SIGNALS_CPY_H
@@ -677,7 +856,7 @@ namespace PLS {
 
 #endif
 
-/* FILE: /rmkit/src/rmkit/color.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/color.h */
 
 /* REQUIRES: */
 #ifndef RMKIT_COLOR_H
@@ -813,7 +992,97 @@ inline remarkable_color quantize<16>(float c)
 #endif // RMKIT_COLOR_H
 
 
-/* FILE: /rmkit/src/rmkit/ui/icons.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/fb/fbio.h */
+
+/* REQUIRES: */
+
+#ifndef BUFFER_UPDATE_H
+#define BUFFER_UPDATE_H
+
+
+#include <linux/fb.h>
+#include <stdint.h>
+
+
+enum {
+  WAVEFORM_MODE_INIT = 0x0,	/* Screen goes to white (clears) */
+  WAVEFORM_MODE_DU =	0x1,	/* Grey->white/grey->black */
+  WAVEFORM_MODE_GC16 =	0x2,	/* High fidelity (flashing) */
+  WAVEFORM_MODE_GC4 =	0x3,	/* Lower fidelity */
+  WAVEFORM_MODE_A2 =	0x4,	/* Fast black/white animation */
+  WAVEFORM_MODE_DU4 = 0x7,
+  WAVEFORM_MODE_REAGLD = 0x9,
+  WAVEFORM_MODE_AUTO = 257,
+};
+
+enum {
+  UPDATE_MODE_PARTIAL = 0,
+  UPDATE_MODE_FULL = 1,
+};
+
+#define TEMP_USE_REMARKABLE_DRAW 0x0018
+#define EPDC_FLAG_EXP1 0x270ce20
+
+
+struct buf_rect {
+	uint32_t top;
+	uint32_t left;
+	uint32_t width;
+	uint32_t height;
+};
+
+struct buf_alt_buffer_data {
+	uint32_t phys_addr;
+	uint32_t width;	/* width of entire buffer */
+	uint32_t height;	/* height of entire buffer */
+	struct buf_rect alt_update_region;	/* region within buffer to update */
+};
+
+struct buf_update_data {
+	struct buf_rect update_region;
+	uint32_t waveform_mode;
+	uint32_t update_mode;
+	uint32_t update_marker;
+	int temp;
+	unsigned int flags;
+	int dither_mode;
+	int quant_bit;
+	struct buf_alt_buffer_data alt_buffer_data;
+};
+
+struct buf_update_marker_data {
+	uint32_t update_marker;
+	uint32_t collision_test;
+};
+
+
+#define BUF_SEND_UPDATE		_IOW('F', 0x2E, struct buf_update_data)
+#define AUTO_UPDATE_MODE_AUTOMATIC_MODE		1
+
+#define BUF_WAIT_FOR_UPDATE_COMPLETE	_IOWR('F', 0x2F, struct buf_update_marker_data)
+#define BUF_SET_AUTO_UPDATE_MODE	_IOW('F', 0x2D, uint32_t)
+
+
+struct buf_update_data_kobo
+{
+	struct buf_rect update_region;
+	/* which waveform to use for the update, du, gc4, gc8 gc16 etc */
+	uint32_t           waveform_mode;
+	uint32_t           update_mode; /* full update or partial update */
+	/* Unique number used by both application
+	 * and driver to identify an update
+	 */
+	uint32_t           update_marker;
+	unsigned int       flags;       /* one or more HWTCON_FLAGs defined above */
+	int                dither_mode; /* one of the dither modes defined above */
+};
+#define BUF_SEND_UPDATE_KOBO		_IOW('F', 0x2E, struct buf_update_data_kobo)
+
+
+#endif
+
+
+/* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h */
 
 /* REQUIRES: */
 #ifndef UI_ICONS_H
@@ -828,7 +1097,7 @@ namespace icons {
 #endif
 
 
-/* FILE: /rmkit/src/shared/clockwatch.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/shared/clockwatch.h */
 
 /* REQUIRES: */
 #ifndef UI______UI______UI______FB______INPUT__________SHARED__CLOCKWATCH_CPY_H
@@ -852,7 +1121,7 @@ class ClockWatch {
 
 #endif
 
-/* FILE: /rmkit/src/vendor/stb/stb_image.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h */
 
 /* REQUIRES: */
 /* stb_image - v2.27 - public domain image loader - http://nothings.org/stb
@@ -8754,7 +9023,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-/* FILE: /rmkit/src/vendor/stb/stb_image_resize.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h */
 
 /* REQUIRES: */
 /* stb_image_resize - v0.97 - public domain image resizing
@@ -11393,17 +11662,20 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/defines.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/icons.h
-/rmkit/src/.rmkit.h_cpp/color.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/color.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fbio.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/icons.h */
 #ifndef DEFINES_H
 #define DEFINES_H
 
 #include <vector>
 #include <string>
 #include <sstream>
+// #include <linux/mxcfb.h>
+// #include <uapi/linux/mxcfb.h>
 
 // #define PERF_BUILD
 
@@ -11427,24 +11699,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERASER_RUBBER -11
 #define TRANSPARENT -12
 #define MAX_PRESSURE 4096.0
-
 // }}}
 
-// {{{ MXCFB DEFINES
-#define WAVEFORM_MODE_INIT	0x0	/* Screen goes to white (clears) */
-#define WAVEFORM_MODE_DU	0x1	/* Grey->white/grey->black */
-#define WAVEFORM_MODE_GC16	0x2	/* High fidelity (flashing) */
-#define WAVEFORM_MODE_GC4	0x3	/* Lower fidelity */
-#define WAVEFORM_MODE_A2	0x4	/* Fast black/white animation */
-#define WAVEFORM_MODE_DU4 0x7
-#define WAVEFORM_MODE_REAGLD 0x9
-#define WAVEFORM_MODE_AUTO 257
-
-#define TEMP_USE_REMARKABLE_DRAW 0x0018
-#define EPDC_FLAG_EXP1 0x270ce20
-
-#define EPDC_FLAG_USE_DITHERING_ALPHA 0x3ff00000
-// }}}
 
 // {{{ VARIABLE SIZE DEFINES
 #ifdef REMARKABLE
@@ -11538,10 +11794,10 @@ struct image_data {
 #endif
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/dither.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/dither.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/color.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/color.h */
 #ifndef FB_DITHER_H
 #define FB_DITHER_H
 
@@ -11599,10 +11855,10 @@ inline remarkable_color BLUE_NOISE_16(int x, int y, remarkable_color c)
 #endif // FB_PATTERN_H
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/fb_info.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/fb/fb_info.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace framebuffer {
   namespace fb_info {
@@ -11618,10 +11874,10 @@ namespace framebuffer {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/image.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h */
 
 /* REQUIRES:
-/rmkit/src/vendor/stb/stb_image_resize.h */
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h */
 #ifndef UI______UI______UI______FB______UTIL__IMAGE_CPY_H
 #define UI______UI______UI______FB______UTIL__IMAGE_CPY_H
 #include <string.h>
@@ -11656,10 +11912,10 @@ namespace util {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/lsdir.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/lsdir.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/shared/string.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/shared/string.h */
 #ifndef UTIL__LSDIR_CPY_H
 #define UTIL__LSDIR_CPY_H
 #include <iostream>
@@ -11708,10 +11964,10 @@ namespace util {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/machine_id.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/util/kobo_id.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/kobo_id.h */
 #ifndef UTIL__MACHINE_ID_CPY_H
 #define UTIL__MACHINE_ID_CPY_H
 #include <iostream>
@@ -11803,10 +12059,10 @@ namespace util {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/rm2fb.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace rm2fb {
   bool IN_RM2FB_SHIM= false; };
@@ -11815,17 +12071,20 @@ namespace rm2fb {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/rmkit/defines.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/defines.h */
 
 /* REQUIRES:
-/rmkit/src/rmkit/color.h
-/rmkit/src/rmkit/ui/icons.h */
+/home/austin/Documents/Git/rmkit/src/rmkit/color.h
+/home/austin/Documents/Git/rmkit/src/rmkit/fb/fbio.h
+/home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h */
 #ifndef DEFINES_H
 #define DEFINES_H
 
 #include <vector>
 #include <string>
 #include <sstream>
+// #include <linux/mxcfb.h>
+// #include <uapi/linux/mxcfb.h>
 
 // #define PERF_BUILD
 
@@ -11849,24 +12108,8 @@ namespace rm2fb {
 #define ERASER_RUBBER -11
 #define TRANSPARENT -12
 #define MAX_PRESSURE 4096.0
-
 // }}}
 
-// {{{ MXCFB DEFINES
-#define WAVEFORM_MODE_INIT	0x0	/* Screen goes to white (clears) */
-#define WAVEFORM_MODE_DU	0x1	/* Grey->white/grey->black */
-#define WAVEFORM_MODE_GC16	0x2	/* High fidelity (flashing) */
-#define WAVEFORM_MODE_GC4	0x3	/* Lower fidelity */
-#define WAVEFORM_MODE_A2	0x4	/* Fast black/white animation */
-#define WAVEFORM_MODE_DU4 0x7
-#define WAVEFORM_MODE_REAGLD 0x9
-#define WAVEFORM_MODE_AUTO 257
-
-#define TEMP_USE_REMARKABLE_DRAW 0x0018
-#define EPDC_FLAG_EXP1 0x270ce20
-
-#define EPDC_FLAG_USE_DITHERING_ALPHA 0x3ff00000
-// }}}
 
 // {{{ VARIABLE SIZE DEFINES
 #ifdef REMARKABLE
@@ -11960,10 +12203,10 @@ struct image_data {
 #endif
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/util/rotate.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/util/machine_id.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h */
 #ifndef UI______UI______UI______FB______UTIL__ROTATE_CPY_H
 #define UI______UI______UI______FB______UTIL__ROTATE_CPY_H
 
@@ -12000,10 +12243,10 @@ namespace util {
 
 #endif
 
-/* FILE: /rmkit/src/vendor/stb/stb_image_write.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h */
 
 /* REQUIRES:
-/rmkit/src/rmkit/defines.h */
+/home/austin/Documents/Git/rmkit/src/rmkit/defines.h */
 /* stb_image_write - v1.15 - public domain - http://nothings.org/stb
    writes out PNG/BMP/TGA/JPEG/HDR images to C stdio - Sean Barrett 2010-2015
                                      no warranty implied; use at your own risk
@@ -13696,10 +13939,10 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-/* FILE: /rmkit/src/vendor/stb/stb_truetype.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_truetype.h */
 
 /* REQUIRES:
-/rmkit/src/rmkit/defines.h */
+/home/austin/Documents/Git/rmkit/src/rmkit/defines.h */
 
 // stb_truetype.h - v1.24 - public domain
 // authored from 2009-2020 by Sean Barrett / RAD Game Tools
@@ -18712,11 +18955,11 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 */
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/vendor/stb/stb_truetype.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_truetype.h */
 #ifndef UI______UI______UI______FB__STB_TEXT_CPY_H
 #define UI______UI______UI______FB__STB_TEXT_CPY_H
 #include <iostream>
@@ -18887,13 +19130,13 @@ namespace stbtext {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/events.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/util/rotate.h
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 #ifndef UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #define UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #include <iostream>
@@ -19429,10 +19672,10 @@ namespace input {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/stb_text.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace stbtext {
   bool did_setup= false;
@@ -19443,10 +19686,10 @@ namespace stbtext {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/events.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace input {
   int next_id= 1234;
@@ -19499,13 +19742,13 @@ namespace input {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/gestures.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/util/signals.h
-/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/rmkit/src/shared/clockwatch.h
-/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/shared/clockwatch.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 #ifndef UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #define UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #include <iostream>
@@ -19731,13 +19974,13 @@ namespace input {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/events.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/rmkit/src/.rmkit.h_cpp/input/events.h
-/rmkit/src/.rmkit.h_cpp/ui/timer.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 #ifndef UI______UI______UI__EVENTS_CPY_H
 #define UI______UI______UI__EVENTS_CPY_H
 #include <memory>
@@ -20007,10 +20250,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/gestures.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/input/gestures.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace input {
   bool DEBUG_GESTURES= false;
@@ -20021,14 +20264,14 @@ namespace input {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/input.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/.rmkit.h_cpp/input/gestures.h
-/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/rmkit/src/.rmkit.h_cpp/input/device_id.h
-/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/device_id.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 #ifndef UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #define UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #include <iostream>
@@ -20377,22 +20620,20 @@ namespace input {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/fb.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/fb/mtk-kobo.h
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
-/rmkit/src/.rmkit.h_cpp/fb/dither.h
-/rmkit/src/.rmkit.h_cpp/util/rotate.h
-/rmkit/src/.rmkit.h_cpp/util/image.h
-/rmkit/src/vendor/fbink.h
-/rmkit/src/vendor/stb/stb_image.h
-/rmkit/src/.rmkit.h_cpp/input/input.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h
-/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/rmkit/src/vendor/stb/stb_image_write.h
-/rmkit/src/.rmkit.h_cpp/fb/mxcfb.h */
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/dither.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/vendor/fbink.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h */
 #ifndef UI______UI______UI______FB__FB_CPY_H
 #define UI______UI______UI______FB__FB_CPY_H
 #include <memory>
@@ -21083,8 +21324,8 @@ namespace framebuffer {
         std::cerr << "XRES" << ' ' << vinfo.xres << ' ' << "YRES" << ' ' << vinfo.yres << ' ' << "BPP" << ' ' << vinfo.bits_per_pixel << ' ' << "GRAYSCALE" << ' ' << vinfo.grayscale << std::endl; } }
 
     void wait_for_redraw(uint32_t update_marker) {
-      mxcfb_update_marker_data mdata = { update_marker, 0 };
-      ioctl(this->fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
+      buf_update_marker_data mdata = { update_marker, 0 };
+      ioctl(this->fd, BUF_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
 
     tuple<int, int> get_display_size() {
       fb_var_screeninfo vinfo;
@@ -21094,8 +21335,8 @@ namespace framebuffer {
 
     int perform_redraw(bool full_screen=false) {
       auto um = 0;
-      mxcfb_update_data update_data;
-      mxcfb_rect update_rect;
+      buf_update_data update_data;
+      buf_rect update_rect;
 
       if (!full_screen) {
         update_rect.top = dirty_area.y0;
@@ -21121,7 +21362,7 @@ namespace framebuffer {
       if (update_rect.height == 0 || update_rect.width == 0) {
         return um; }
 
-      ioctl(this->fd, MXCFB_SEND_UPDATE, &update_data);
+      ioctl(this->fd, BUF_SEND_UPDATE, &update_data);
       um = update_data.update_marker;
 
       reset_dirty(this->dirty_area);
@@ -21215,7 +21456,7 @@ namespace framebuffer {
 
       #ifdef REMARKABLE
       uint32_t auto_update_mode = AUTO_UPDATE_MODE_AUTOMATIC_MODE;
-      ioctl(this->fd, MXCFB_SET_AUTO_UPDATE_MODE, (pointer_size) &auto_update_mode);
+      ioctl(this->fd, BUF_SET_AUTO_UPDATE_MODE, (pointer_size) &auto_update_mode);
       #endif
       ; }
 
@@ -21356,8 +21597,8 @@ namespace framebuffer {
         std::cerr << "XRES" << ' ' << vinfo.xres << ' ' << "YRES" << ' ' << vinfo.yres << ' ' << "BPP" << ' ' << vinfo.bits_per_pixel << ' ' << "GRAYSCALE" << ' ' << vinfo.grayscale << std::endl; } }
 
     void wait_for_redraw(uint32_t update_marker) {
-      hwtcon_update_marker_data mdata = { update_marker, 0 };
-      ioctl(this->fd, HWTCON_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
+      buf_update_marker_data mdata = { update_marker, 0 };
+      ioctl(this->fd, BUF_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
 
     tuple<int, int> get_display_size() {
       fb_var_screeninfo vinfo;
@@ -21367,8 +21608,8 @@ namespace framebuffer {
 
     int perform_redraw(bool full_screen=false) {
       auto um = 0;
-      hwtcon_update_data update_data;
-      hwtcon_rect update_rect;
+      buf_update_data_kobo update_data;
+      buf_rect update_rect;
 
       if (!full_screen) {
         update_rect.top = dirty_area.y0;
@@ -21393,7 +21634,7 @@ namespace framebuffer {
       if (update_rect.height == 0 || update_rect.width == 0) {
         return um; }
 
-      ioctl(this->fd, HWTCON_SEND_UPDATE, &update_data);
+      ioctl(this->fd, BUF_SEND_UPDATE_KOBO, &update_data);
       um = update_data.update_marker;
 
       reset_dirty(this->dirty_area);
@@ -21438,10 +21679,10 @@ namespace framebuffer {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/input/input.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/input/input.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 #ifdef RMKIT_IMPLEMENTATION
 bool USE_RESIM= true;
 
@@ -21454,10 +21695,10 @@ namespace input {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/input/input.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 #ifndef UI______UI__TASK_QUEUE_CPY_H
 #define UI______UI__TASK_QUEUE_CPY_H
 #include <deque>
@@ -21567,10 +21808,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/fb/fb.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/fb/fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace framebuffer {
   int ALPHA_BLEND= 4160223223;
@@ -21581,10 +21822,10 @@ namespace framebuffer {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/task_queue.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
 #ifdef RMKIT_IMPLEMENTATION
 #include <deque>
 using namespace std;
@@ -21605,13 +21846,13 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/events.h
-/rmkit/src/.rmkit.h_cpp/ui/style.h
-/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/style.h */
 #ifndef UI______UI______UI__WIDGET_CPY_H
 #define UI______UI______UI__WIDGET_CPY_H
 #include <memory>
@@ -21835,10 +22076,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/range_input.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifndef UI__RANGE_INPUT_CPY_H
 #define UI__RANGE_INPUT_CPY_H
 
@@ -21911,11 +22152,11 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/scene.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 #ifndef UI______UI______UI__SCENE_CPY_H
 #define UI______UI______UI__SCENE_CPY_H
 #include <memory>
@@ -21996,12 +22237,12 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/text.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 #ifndef UI______UI__TEXT_CPY_H
 #define UI______UI__TEXT_CPY_H
 #include <tuple>
@@ -22145,10 +22386,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/widget.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace ui {
   framebuffer::FB* Widget::fb= NULL; };
@@ -22157,12 +22398,12 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/layouts.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/rmkit/src/.rmkit.h_cpp/input/events.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI______UI______UI__LAYOUTS_CPY_H
 #define UI______UI______UI__LAYOUTS_CPY_H
 #include <memory>
@@ -22392,14 +22633,14 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/rmkit/src/.rmkit.h_cpp/util/image.h
-/rmkit/src/vendor/stb/stb_image.h
-/rmkit/src/.rmkit.h_cpp/ui/text.h */
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 #ifndef UI______UI__PIXMAP_CPY_H
 #define UI______UI__PIXMAP_CPY_H
 #include <map>
@@ -22505,10 +22746,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/reflow.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
 #ifndef UI__REFLOW_CPY_H
 #define UI__REFLOW_CPY_H
 #include <iostream>
@@ -22715,13 +22956,13 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/button.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/text.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/input/keycodes.h
-/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 #ifndef UI______UI__BUTTON_CPY_H
 #define UI______UI__BUTTON_CPY_H
 #include <iostream>
@@ -22889,19 +23130,19 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/rmkit/src/.rmkit.h_cpp/defines.h
-/rmkit/src/.rmkit.h_cpp/input/gestures.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/ui/reflow.h
-/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/rmkit/src/.rmkit.h_cpp/input/input.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h
-/rmkit/src/.rmkit.h_cpp/ui/task_queue.h
-/rmkit/src/.rmkit.h_cpp/ui/timer.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
 #ifndef UI______UI__MAIN_LOOP_CPY_H
 #define UI______UI__MAIN_LOOP_CPY_H
 #include <iostream>
@@ -23347,10 +23588,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/pixmap.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
 #ifdef RMKIT_IMPLEMENTATION
 #include <map>
 using namespace std;
@@ -23361,10 +23602,10 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/reflow.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/reflow.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h */
 #ifdef RMKIT_IMPLEMENTATION
 #include <unordered_map>
 #include <vector>
@@ -23376,14 +23617,14 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
 
 /* REQUIRES:
-/rmkit/src/vendor/stb/stb_image_resize.h
-/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
-/rmkit/src/.rmkit.h_cpp/util/image.h
-/rmkit/src/vendor/stb/stb_image.h
-/rmkit/src/.rmkit.h_cpp/fb/fb.h */
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
 #ifndef UI__THUMBNAIL_CPY_H
 #define UI__THUMBNAIL_CPY_H
 #include <vector>
@@ -23433,16 +23674,16 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/init.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
-/rmkit/src/.rmkit.h_cpp/util/lsdir.h
-/rmkit/src/.rmkit.h_cpp/util/machine_id.h
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/rmkit/src/.rmkit.h_cpp/input/input.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/lsdir.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 #ifndef INIT_CPY_H
 #define INIT_CPY_H
 using namespace std;
@@ -23498,10 +23739,10 @@ static void _rmkit_init() {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/button.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/button.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace ui {
   Stylesheet Button::DEFAULT_STYLE= {};
@@ -23512,14 +23753,14 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/dialog.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/ui/button.h
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 #ifndef UI__DIALOG_CPY_H
 #define UI__DIALOG_CPY_H
 #include <vector>
@@ -23686,14 +23927,14 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/dropdown.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/button.h
-/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/rmkit/src/.rmkit.h_cpp/input/events.h
-/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 #ifndef UI__DROPDOWN_CPY_H
 #define UI__DROPDOWN_CPY_H
 #include <memory>
@@ -23947,14 +24188,14 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/ui/button.h
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 #ifndef UI__KEYBOARD_CPY_H
 #define UI__KEYBOARD_CPY_H
 #include <iostream>
@@ -24189,10 +24430,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/main_loop.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 #ifdef RMKIT_IMPLEMENTATION
 #include <memory>
 #include <vector>
@@ -24224,10 +24465,10 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/dropdown.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/dropdown.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace ui {
   Stylesheet OptionButton::DEFAULT_STYLE= Stylesheet().justify_left(); };
@@ -24236,10 +24477,10 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/keyboard.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace ui {
   Stylesheet Keyboard::BTN_STYLE= Stylesheet().font_size(48).valign_middle().justify_center();
@@ -24250,11 +24491,11 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/pager.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/dialog.h
-/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h */
 #ifndef UI__PAGER_CPY_H
 #define UI__PAGER_CPY_H
 #include <memory>
@@ -24341,10 +24582,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/text_input.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h */
 #ifndef UI__TEXT_INPUT_CPY_H
 #define UI__TEXT_INPUT_CPY_H
 
@@ -24474,10 +24715,10 @@ namespace ui {
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/text_input.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/text_input.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h */
 #ifdef RMKIT_IMPLEMENTATION
 namespace ui {
   Stylesheet TextInput::DEFAULT_STYLE= Stylesheet().justify_center(); };
@@ -24486,38 +24727,38 @@ namespace ui {
 #endif /* RMKIT_IMPLEMENTATION */ 
 
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/ui/ui.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/rmkit/src/.rmkit.h_cpp/ui/button.h
-/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/rmkit/src/.rmkit.h_cpp/ui/text_input.h
-/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/rmkit/src/.rmkit.h_cpp/ui/pager.h
-/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
-/rmkit/src/.rmkit.h_cpp/ui/reflow.h
-/rmkit/src/.rmkit.h_cpp/ui/dialog.h
-/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
-/rmkit/src/.rmkit.h_cpp/ui/range_input.h
-/rmkit/src/.rmkit.h_cpp/ui/text.h
-/rmkit/src/.rmkit.h_cpp/ui/keyboard.h
-/rmkit/src/.rmkit.h_cpp/ui/dropdown.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 #ifndef UI__UI_CPY_H
 #define UI__UI_CPY_H
 
 
 #endif
 
-/* FILE: /rmkit/src/.rmkit.h_cpp/rmkit.cpp */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/rmkit.cpp */
 
 /* REQUIRES:
-/rmkit/src/.rmkit.h_cpp/ui/ui.h
-/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/rmkit/src/.rmkit.h_cpp/input/input.h
-/rmkit/src/.rmkit.h_cpp/util/signals.h
-/rmkit/src/.rmkit.h_cpp/init.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
 
 #ifdef RMKIT_BUILD
 int main() {
