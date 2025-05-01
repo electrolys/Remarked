@@ -117,10 +117,10 @@ public:
 
             int cnum = 0;
             if (page > 1)
-              for (int c = fgetc(f); !(c == '\n' || c == EOF || cnum == 100); c = fgetc(f), cnum++){}
+              for (int c = getc(f); !(c == '\n' || c == EOF || cnum == 100); c = getc(f), cnum++){}
             
             std::string line = "";
-            for (int c = fgetc(f) ; ; c = fgetc(f), cnum++ ) {
+            for (int c = getc(f) ; ; c = getc(f), cnum++ ) {
               if (c == EOF || cnum == 3000 || (cnum >= 2900 && (c == '\n'))) {
                 text_lines.push_back(line);
                 break;
