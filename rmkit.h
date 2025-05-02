@@ -152,80 +152,146 @@ namespace framebuffer {
 
 #endif
 
-/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fbio.h */
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mtk-kobo.h */
 
 /* REQUIRES: */
+/*****************************************************************************
+ * Copyright (C) 2016 MediaTek Inc.
+ *
+ * ----
+ *
+ * This is <linux/hwtcon_ioctl_cmd.h>, last updated from the Elipsa 2E kernel
+ *
+ * NOTE: Upstream kernels available here: https://github.com/kobolabs/Kobo-Reader/tree/master/hw/mt8113-elipsa2e
+ *
+ * - Frankensteined to play nice w/ MXCFB constants -- NiLuJe
+ *
+ * ----
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 as
+ * published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See http://www.gnu.org/licenses/gpl-2.0.html for more details.
+ *
+ * Accelerometer Sensor Driver
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ *
+ *****************************************************************************/
 
-#ifndef BUFFER_UPDATE_H
-#define BUFFER_UPDATE_H
+#ifndef __HWTCON_IOCTL_CMD_H__
+#define __HWTCON_IOCTL_CMD_H__
 
+#ifndef __KERNEL__
+#	include <stdint.h>
+#endif
 
-#include <linux/fb.h>
-#include <stdint.h>
+/* HWTCON_FLAG_xx */
+#define HWTCON_FLAG_USE_DITHERING         0x1
+#define HWTCON_FLAG_FORCE_A2_OUTPUT       0x10    // Mainly used for pen updates, requires HWTCON_WAVEFORM_MODE_A2
+#define HWTCON_FLAG_FORCE_A2_OUTPUT_WHITE 0x20    // Black pen, requires HWTCON_FLAG_FORCE_A2_OUTPUT
+#define HWTCON_FLAG_FORCE_A2_OUTPUT_BLACK 0x40    // White pen, requires HWTCON_FLAG_FORCE_A2_OUTPUT
+// Pen color is auto-detected if only HWTCON_FLAG_FORCE_A2_OUTPUT is provided
 
+/* temperature use sensor. */
+// NOTE: No longer set request-by-request, but globally via HWTCON_SET_TEMPERATURE
+#define TEMP_USE_SENSOR 0x100000
 
-enum {
-  WAVEFORM_MODE_INIT = 0x0,	/* Screen goes to white (clears) */
-  WAVEFORM_MODE_DU =	0x1,	/* Grey->white/grey->black */
-  WAVEFORM_MODE_GC16 =	0x2,	/* High fidelity (flashing) */
-  WAVEFORM_MODE_GC4 =	0x3,	/* Lower fidelity */
-  WAVEFORM_MODE_A2 =	0x4,	/* Fast black/white animation */
-  WAVEFORM_MODE_DU4 = 0x7,
-  WAVEFORM_MODE_REAGLD = 0x9,
-  WAVEFORM_MODE_AUTO = 257,
+// Matches MXCFB
+#define UPDATE_MODE_PARTIAL 0x0
+#define UPDATE_MODE_FULL    0x1
+
+// NOTE: That confusing `enable_night_mode_by_wfm` mapping is never actually used, unless you enable it via the debug procfs knob.
+//       FWIW, lab126 does GC16 => GCK16 & GLR16 => GLKW16...
+enum HWTCON_WAVEFORM_MODE_ENUM
+{
+	// Matches MXCFB
+	HWTCON_WAVEFORM_MODE_INIT   = 0,
+	HWTCON_WAVEFORM_MODE_DU     = 1,
+	HWTCON_WAVEFORM_MODE_GC16   = 2,    // => GL16 if PARTIAL; => GCK16 if PARTIAL in NM & => GLKW16 if FULL in NM
+	// Doesn't match MXCFB
+	HWTCON_WAVEFORM_MODE_GL16   = 3,    // => GCK16 in NM
+	HWTCON_WAVEFORM_MODE_GLR16  = 4,    // => GCK16 in NM
+	HWTCON_WAVEFORM_MODE_REAGL  = 4,    // => GCK16 in NM
+	HWTCON_WAVEFORM_MODE_A2     = 6,
+	HWTCON_WAVEFORM_MODE_GCK16  = 8,
+	HWTCON_WAVEFORM_MODE_GLKW16 = 9,    // AKA. GCKW16; REAGL DARK
+	// Matches MXCFB
+	HWTCON_WAVEFORM_MODE_AUTO   = 257,
 };
 
-enum {
-  UPDATE_MODE_PARTIAL = 0,
-  UPDATE_MODE_FULL = 1,
+#define WAVEFORM_TYPE_4BIT 0x1
+#define WAVEFORM_TYPE_5BIT (WAVEFORM_TYPE_4BIT << 1)
+
+enum hwtcon_dithering_mode
+{
+	// Quantize only?
+	HWTCON_FLAG_USE_DITHERING_Y8_Y4_Q = 0x100,
+	HWTCON_FLAG_USE_DITHERING_Y8_Y2_Q = 0x200,
+	HWTCON_FLAG_USE_DITHERING_Y8_Y1_Q = 0x300,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y2_Q = 0x10200,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y1_Q = 0x10300,
+
+	// Bayer? (i.e., Ordered)
+	HWTCON_FLAG_USE_DITHERING_Y8_Y4_B = 0x101,
+	HWTCON_FLAG_USE_DITHERING_Y8_Y2_B = 0x201,
+	HWTCON_FLAG_USE_DITHERING_Y8_Y1_B = 0x301,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y2_B = 0x10201,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y1_B = 0x10301,
+
+	// Floyd-Steinberg?
+	HWTCON_FLAG_USE_DITHERING_Y8_Y4_S = 0x102,    // Default, matches Kindle (where it... doesn't do anything :D)
+	HWTCON_FLAG_USE_DITHERING_Y8_Y2_S = 0x202,
+	HWTCON_FLAG_USE_DITHERING_Y8_Y1_S = 0x302,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y2_S = 0x10202,
+	HWTCON_FLAG_USE_DITHERING_Y4_Y1_S = 0x10302,
 };
 
-#define TEMP_USE_REMARKABLE_DRAW 0x0018
-#define EPDC_FLAG_EXP1 0x270ce20
+struct hwtcon_waveform_modes
+{
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_INIT */
+	int mode_init;
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_DU */
+	int mode_du;
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_GC16 */
+	int mode_gc16;
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_GL16 */
+	int mode_gl16;
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_A2 */
+	int mode_a2;
+	/* waveform mode index for HWTCON_WAVEFORM_MODE_REAGL */
+	int mode_reagl;
+};
 
-
-struct buf_rect {
+struct hwtcon_rect
+{
 	uint32_t top;
 	uint32_t left;
 	uint32_t width;
 	uint32_t height;
 };
 
-struct buf_alt_buffer_data {
-	uint32_t phys_addr;
-	uint32_t width;	/* width of entire buffer */
-	uint32_t height;	/* height of entire buffer */
-	struct buf_rect alt_update_region;	/* region within buffer to update */
-};
-
-struct buf_update_data {
-	struct buf_rect update_region;
-	uint32_t waveform_mode;
-	uint32_t update_mode;
-	uint32_t update_marker;
-	int temp;
-	unsigned int flags;
-	int dither_mode;
-	int quant_bit;
-	struct buf_alt_buffer_data alt_buffer_data;
-};
-
-struct buf_update_marker_data {
-	uint32_t update_marker;
-	uint32_t collision_test;
-};
-
-
-#define BUF_SEND_UPDATE		_IOW('F', 0x2E, struct buf_update_data)
-#define AUTO_UPDATE_MODE_AUTOMATIC_MODE		1
-
-#define BUF_WAIT_FOR_UPDATE_COMPLETE	_IOWR('F', 0x2F, struct buf_update_marker_data)
-#define BUF_SET_AUTO_UPDATE_MODE	_IOW('F', 0x2D, uint32_t)
-
-
-struct buf_update_data_kobo
+// NOTE: Unused
+struct hwtcon_update_marker_data
 {
-	struct buf_rect update_region;
+	uint32_t update_marker;
+	uint32_t collision_test;    // Unimplemented, for good reason, see HWTCON_WAIT_FOR_UPDATE_COMPLETE handler
+};
+
+struct hwtcon_update_data
+{
+	struct hwtcon_rect update_region;
 	/* which waveform to use for the update, du, gc4, gc8 gc16 etc */
 	uint32_t           waveform_mode;
 	uint32_t           update_mode; /* full update or partial update */
@@ -236,9 +302,301 @@ struct buf_update_data_kobo
 	unsigned int       flags;       /* one or more HWTCON_FLAGs defined above */
 	int                dither_mode; /* one of the dither modes defined above */
 };
-#define BUF_SEND_UPDATE_KOBO		_IOW('F', 0x2E, struct buf_update_data_kobo)
+
+struct hwtcon_panel_info
+{
+	char wf_file_name[100];
+	int  vcom_value;
+	/* temperature */
+	int  temp;
+	/* temperature zone */
+	int  temp_zone;
+};
+
+/* ioctl commds */
+#define HWTCON_IOCTL_MAGIC_NUMBER 'F'
+
+// Flips the nightmode flag, prevents GCK16 & GLKW16 from automatically enabling nightmode, and inverts the fb.
+// NOTE: Except you can't reset the enable_night_mode_by_wfm & invert_fb flags without resorting to the debug procfs knob,
+//       because the ioctl handler is one-way for those two...
+//       c.f., hwtcon_fb_ioctl @ drivers/misc/mediatek/hwtcon/hwtcon_fb.c
+//       c.f., debug_enable_nightmode @ drivers/misc/mediatek/hwtcon/hwtcon_debug.c
+// NOTE: Speaking of, the invert_fb flag can only be toggled on its own via procfs:
+//       echo "night_mode 4" > /proc/hwtcon/cmd for on, 0 for off.
+#define HWTCON_SET_NIGHTMODE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x26, int32_t)
+
+/* Set the mapping between waveform types and waveform mode index */
+#define HWTCON_SET_WAVEFORM_MODES _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x2B, struct hwtcon_waveform_modes)
+
+/* Set the temperature for screen updates.
+ * If temperature specified is TEMP_USE_SENSOR,
+ * use the temperature read from the temperature sensor.
+ * Otherwise use the temperature specified
+ */
+#define HWTCON_SET_TEMPERATURE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x2C, int32_t)
+
+// NOTE: Unimplemented
+#define HWTCON_SET_AUTO_UPDATE_MODE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x2D, uint32_t)
+
+/* Get the temperature currently used for screen updates.
+ * If the temperature set by command FB_SET_TEMPERATURE
+ * is not equal to TEMP_USE_SENSOR,
+ * return that temperature value.
+ * Otherwise, return the temperature read from the temperature sensor
+ */
+#define HWTCON_GET_TEMPERATURE _IOR(HWTCON_IOCTL_MAGIC_NUMBER, 0x38, int32_t)
+
+/* Send update info to update the Eink panel display */
+#define HWTCON_SEND_UPDATE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x2E, struct hwtcon_update_data)
+
+/* Wait until the specified send_update request
+ * (specified by hwtcon_update_marker_data) is
+ * submitted to HWTCON to display or timeout (5 seconds)
+ */
+// NOTE: Backend support may not be entirely implemented (MARKER_V2_ENABLE appears to be unset)
+#define HWTCON_WAIT_FOR_UPDATE_SUBMISSION _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x37, uint32_t)
+
+/* Wait until the specified send_update request
+ * (specified by hwtcon_update_marker_data) is
+ * already completed (Eink panel updated) or timeout (5 seconds)
+ */
+// NOTE: Handler actually takes a pointer to a simple uint32_t!
+#define HWTCON_WAIT_FOR_UPDATE_COMPLETE _IOWR(HWTCON_IOCTL_MAGIC_NUMBER, 0x2F, struct hwtcon_update_marker_data)
+
+/* Copy the content of the working buffer to user space */
+#define HWTCON_GET_WORK_BUFFER _IOWR(HWTCON_IOCTL_MAGIC_NUMBER, 0x34, unsigned long)
+
+/* Set the power down delay so the driver won't shut down the HWTCON immediately
+ * after all the updates are done.
+ * Instead it will wait until the "DELAY" time has elapsed to skip the
+ * powerdown and powerup sequences if an update comes before that.
+ */
+// NOTE: Default is 500ms, -1 means never power down.
+#define HWTCON_SET_PWRDOWN_DELAY _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x30, int32_t)
+
+/* Get the power down delay set in HWTCON_SET_PWRDOWN_DELAY command */
+#define HWTCON_GET_PWRDOWN_DELAY _IOR(HWTCON_IOCTL_MAGIC_NUMBER, 0x31, int32_t)
+
+/* Pause updating the screen.
+ * Any HWTCON_SEND_UPDATE request will be discarded.
+ */
+// NOTE: Argument is irrelevant
+#define HWTCON_SET_PAUSE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x33, uint32_t)
+
+/* Resume updating the screen. */
+// NOTE: Argument is irrelevant
+#define HWTCON_SET_RESUME _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x35, uint32_t)
+
+/* Get the screen updating flag set by HWTCON_SET_PAUSE or HWTCON_SET_RESUME */
+#define HWTCON_GET_PAUSE _IOW(HWTCON_IOCTL_MAGIC_NUMBER, 0x34, uint32_t)
+
+#define HWTCON_GET_PANEL_INFO _IOR(HWTCON_IOCTL_MAGIC_NUMBER, 0x130, struct hwtcon_panel_info)
+
+#endif /* __HWTCON_IOCTL_CMD_H__ */
 
 
+/* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mxcfb.h */
+
+/* REQUIRES: */
+/*
+ * Copyright (C) 2013-2015 Freescale Semiconductor, Inc. All Rights Reserved
+ */
+
+/*
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along
+ * with this program; if not, write to the Free Software Foundation, Inc.,
+ * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
+ */
+
+/*
+ * @file uapi/linux/mxcfb.h
+ *
+ * @brief Global header file for the MXC frame buffer
+ *
+ * @ingroup Framebuffer
+ */
+#ifndef __ASM_ARCH_MXCFB_H__
+#define __ASM_ARCH_MXCFB_H__
+
+#include <linux/fb.h>
+
+#define FB_SYNC_OE_LOW_ACT	0x80000000
+#define FB_SYNC_CLK_LAT_FALL	0x40000000
+#define FB_SYNC_DATA_INVERT	0x20000000
+#define FB_SYNC_CLK_IDLE_EN	0x10000000
+#define FB_SYNC_SHARP_MODE	0x08000000
+#define FB_SYNC_SWAP_RGB	0x04000000
+#define FB_ACCEL_TRIPLE_FLAG	0x00000000
+#define FB_ACCEL_DOUBLE_FLAG	0x00000001
+
+struct mxcfb_gbl_alpha {
+	int enable;
+	int alpha;
+};
+
+struct mxcfb_loc_alpha {
+	int enable;
+	int alpha_in_pixel;
+	unsigned long alpha_phy_addr0;
+	unsigned long alpha_phy_addr1;
+};
+
+struct mxcfb_color_key {
+	int enable;
+	__u32 color_key;
+};
+
+struct mxcfb_pos {
+	__u16 x;
+	__u16 y;
+};
+
+struct mxcfb_gamma {
+	int enable;
+	int constk[16];
+	int slopek[16];
+};
+
+struct mxcfb_gpu_split_fmt {
+	struct fb_var_screeninfo var;
+	unsigned long offset;
+};
+
+struct mxcfb_rect {
+	__u32 top;
+	__u32 left;
+	__u32 width;
+	__u32 height;
+};
+
+#define GRAYSCALE_8BIT				0x1
+#define GRAYSCALE_8BIT_INVERTED			0x2
+#define GRAYSCALE_4BIT                          0x3
+#define GRAYSCALE_4BIT_INVERTED                 0x4
+
+#define AUTO_UPDATE_MODE_REGION_MODE		0
+#define AUTO_UPDATE_MODE_AUTOMATIC_MODE		1
+
+#define UPDATE_SCHEME_SNAPSHOT			0
+#define UPDATE_SCHEME_QUEUE			1
+#define UPDATE_SCHEME_QUEUE_AND_MERGE		2
+
+#define UPDATE_MODE_PARTIAL			0x0
+#define UPDATE_MODE_FULL			0x1
+
+#define WAVEFORM_MODE_GLR16			4
+#define WAVEFORM_MODE_GLD16			5
+#define WAVEFORM_MODE_AUTO			257
+
+#define TEMP_USE_AMBIENT			0x1000
+
+#define EPDC_FLAG_ENABLE_INVERSION		0x01
+#define EPDC_FLAG_FORCE_MONOCHROME		0x02
+#define EPDC_FLAG_USE_CMAP			0x04
+#define EPDC_FLAG_USE_ALT_BUFFER		0x100
+#define EPDC_FLAG_TEST_COLLISION		0x200
+#define EPDC_FLAG_GROUP_UPDATE			0x400
+#define EPDC_FLAG_USE_DITHERING_Y1		0x2000
+#define EPDC_FLAG_USE_DITHERING_Y4		0x4000
+#define EPDC_FLAG_USE_REGAL				0x8000
+
+enum mxcfb_dithering_mode {
+	EPDC_FLAG_USE_DITHERING_PASSTHROUGH = 0x0,
+	EPDC_FLAG_USE_DITHERING_FLOYD_STEINBERG,
+	EPDC_FLAG_USE_DITHERING_ATKINSON,
+	EPDC_FLAG_USE_DITHERING_ORDERED,
+	EPDC_FLAG_USE_DITHERING_QUANT_ONLY,
+	EPDC_FLAG_USE_DITHERING_MAX,
+};
+
+#define FB_POWERDOWN_DISABLE			-1
+#define FB_TEMP_AUTO_UPDATE_DISABLE		-1
+
+struct mxcfb_alt_buffer_data {
+	__u32 phys_addr;
+	__u32 width;	/* width of entire buffer */
+	__u32 height;	/* height of entire buffer */
+	struct mxcfb_rect alt_update_region;	/* region within buffer to update */
+};
+
+struct mxcfb_update_data {
+	struct mxcfb_rect update_region;
+	__u32 waveform_mode;
+	__u32 update_mode;
+	__u32 update_marker;
+	int temp;
+	unsigned int flags;
+	int dither_mode;
+	int quant_bit;
+	struct mxcfb_alt_buffer_data alt_buffer_data;
+};
+
+struct mxcfb_update_marker_data {
+	__u32 update_marker;
+	__u32 collision_test;
+};
+
+/*
+ * Structure used to define waveform modes for driver
+ * Needed for driver to perform auto-waveform selection
+ */
+struct mxcfb_waveform_modes {
+	int mode_init;
+	int mode_du;
+	int mode_gc4;
+	int mode_gc8;
+	int mode_gc16;
+	int mode_gc32;
+};
+
+/*
+ * Structure used to define a 5*3 matrix of parameters for
+ * setting IPU DP CSC module related to this framebuffer.
+ */
+struct mxcfb_csc_matrix {
+	int param[5][3];
+};
+
+#define MXCFB_WAIT_FOR_VSYNC	_IOW('F', 0x20, u_int32_t)
+#define MXCFB_SET_GBL_ALPHA     _IOW('F', 0x21, struct mxcfb_gbl_alpha)
+#define MXCFB_SET_CLR_KEY       _IOW('F', 0x22, struct mxcfb_color_key)
+#define MXCFB_SET_OVERLAY_POS   _IOWR('F', 0x24, struct mxcfb_pos)
+#define MXCFB_GET_FB_IPU_CHAN 	_IOR('F', 0x25, u_int32_t)
+#define MXCFB_SET_LOC_ALPHA     _IOWR('F', 0x26, struct mxcfb_loc_alpha)
+#define MXCFB_SET_LOC_ALP_BUF    _IOW('F', 0x27, unsigned long)
+#define MXCFB_SET_GAMMA	       _IOW('F', 0x28, struct mxcfb_gamma)
+#define MXCFB_GET_FB_IPU_DI 	_IOR('F', 0x29, u_int32_t)
+#define MXCFB_GET_DIFMT	       _IOR('F', 0x2A, u_int32_t)
+#define MXCFB_GET_FB_BLANK     _IOR('F', 0x2B, u_int32_t)
+#define MXCFB_SET_DIFMT		_IOW('F', 0x2C, u_int32_t)
+#define MXCFB_CSC_UPDATE	_IOW('F', 0x2D, struct mxcfb_csc_matrix)
+#define MXCFB_SET_GPU_SPLIT_FMT	_IOW('F', 0x2F, struct mxcfb_gpu_split_fmt)
+#define MXCFB_SET_PREFETCH	_IOW('F', 0x30, int)
+#define MXCFB_GET_PREFETCH	_IOR('F', 0x31, int)
+
+/* IOCTLs for E-ink panel updates */
+#define MXCFB_SET_WAVEFORM_MODES	_IOW('F', 0x2B, struct mxcfb_waveform_modes)
+#define MXCFB_SET_TEMPERATURE		_IOW('F', 0x2C, int32_t)
+#define MXCFB_SET_AUTO_UPDATE_MODE	_IOW('F', 0x2D, __u32)
+#define MXCFB_SEND_UPDATE		_IOW('F', 0x2E, struct mxcfb_update_data)
+#define MXCFB_WAIT_FOR_UPDATE_COMPLETE	_IOWR('F', 0x2F, struct mxcfb_update_marker_data)
+#define MXCFB_SET_PWRDOWN_DELAY		_IOW('F', 0x30, int32_t)
+#define MXCFB_GET_PWRDOWN_DELAY		_IOR('F', 0x31, int32_t)
+#define MXCFB_SET_UPDATE_SCHEME		_IOW('F', 0x32, __u32)
+#define MXCFB_GET_WORK_BUFFER		_IOWR('F', 0x34, unsigned long)
+#define MXCFB_SET_TEMP_AUTO_UPDATE_PERIOD      _IOW('F', 0x36, int32_t)
+#define MXCFB_DISABLE_EPDC_ACCESS	_IO('F', 0x35)
+#define MXCFB_ENABLE_EPDC_ACCESS	_IO('F', 0x36)
 #endif
 
 
@@ -990,96 +1348,6 @@ inline remarkable_color quantize<16>(float c)
 } // namespace color
 
 #endif // RMKIT_COLOR_H
-
-
-/* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/fb/fbio.h */
-
-/* REQUIRES: */
-
-#ifndef BUFFER_UPDATE_H
-#define BUFFER_UPDATE_H
-
-
-#include <linux/fb.h>
-#include <stdint.h>
-
-
-enum {
-  WAVEFORM_MODE_INIT = 0x0,	/* Screen goes to white (clears) */
-  WAVEFORM_MODE_DU =	0x1,	/* Grey->white/grey->black */
-  WAVEFORM_MODE_GC16 =	0x2,	/* High fidelity (flashing) */
-  WAVEFORM_MODE_GC4 =	0x3,	/* Lower fidelity */
-  WAVEFORM_MODE_A2 =	0x4,	/* Fast black/white animation */
-  WAVEFORM_MODE_DU4 = 0x7,
-  WAVEFORM_MODE_REAGLD = 0x9,
-  WAVEFORM_MODE_AUTO = 257,
-};
-
-enum {
-  UPDATE_MODE_PARTIAL = 0,
-  UPDATE_MODE_FULL = 1,
-};
-
-#define TEMP_USE_REMARKABLE_DRAW 0x0018
-#define EPDC_FLAG_EXP1 0x270ce20
-
-
-struct buf_rect {
-	uint32_t top;
-	uint32_t left;
-	uint32_t width;
-	uint32_t height;
-};
-
-struct buf_alt_buffer_data {
-	uint32_t phys_addr;
-	uint32_t width;	/* width of entire buffer */
-	uint32_t height;	/* height of entire buffer */
-	struct buf_rect alt_update_region;	/* region within buffer to update */
-};
-
-struct buf_update_data {
-	struct buf_rect update_region;
-	uint32_t waveform_mode;
-	uint32_t update_mode;
-	uint32_t update_marker;
-	int temp;
-	unsigned int flags;
-	int dither_mode;
-	int quant_bit;
-	struct buf_alt_buffer_data alt_buffer_data;
-};
-
-struct buf_update_marker_data {
-	uint32_t update_marker;
-	uint32_t collision_test;
-};
-
-
-#define BUF_SEND_UPDATE		_IOW('F', 0x2E, struct buf_update_data)
-#define AUTO_UPDATE_MODE_AUTOMATIC_MODE		1
-
-#define BUF_WAIT_FOR_UPDATE_COMPLETE	_IOWR('F', 0x2F, struct buf_update_marker_data)
-#define BUF_SET_AUTO_UPDATE_MODE	_IOW('F', 0x2D, uint32_t)
-
-
-struct buf_update_data_kobo
-{
-	struct buf_rect update_region;
-	/* which waveform to use for the update, du, gc4, gc8 gc16 etc */
-	uint32_t           waveform_mode;
-	uint32_t           update_mode; /* full update or partial update */
-	/* Unique number used by both application
-	 * and driver to identify an update
-	 */
-	uint32_t           update_marker;
-	unsigned int       flags;       /* one or more HWTCON_FLAGs defined above */
-	int                dither_mode; /* one of the dither modes defined above */
-};
-#define BUF_SEND_UPDATE_KOBO		_IOW('F', 0x2E, struct buf_update_data_kobo)
-
-
-#endif
 
 
 /* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h */
@@ -11666,7 +11934,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/color.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fbio.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/icons.h */
 #ifndef DEFINES_H
 #define DEFINES_H
@@ -11674,8 +11941,6 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include <vector>
 #include <string>
 #include <sstream>
-// #include <linux/mxcfb.h>
-// #include <uapi/linux/mxcfb.h>
 
 // #define PERF_BUILD
 
@@ -11699,8 +11964,24 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #define ERASER_RUBBER -11
 #define TRANSPARENT -12
 #define MAX_PRESSURE 4096.0
+
 // }}}
 
+// {{{ MXCFB DEFINES
+#define WAVEFORM_MODE_INIT	0x0	/* Screen goes to white (clears) */
+#define WAVEFORM_MODE_DU	0x1	/* Grey->white/grey->black */
+#define WAVEFORM_MODE_GC16	0x2	/* High fidelity (flashing) */
+#define WAVEFORM_MODE_GC4	0x3	/* Lower fidelity */
+#define WAVEFORM_MODE_A2	0x4	/* Fast black/white animation */
+#define WAVEFORM_MODE_DU4 0x7
+#define WAVEFORM_MODE_REAGLD 0x9
+#define WAVEFORM_MODE_AUTO 257
+
+#define TEMP_USE_REMARKABLE_DRAW 0x0018
+#define EPDC_FLAG_EXP1 0x270ce20
+
+#define EPDC_FLAG_USE_DITHERING_ALPHA 0x3ff00000
+// }}}
 
 // {{{ VARIABLE SIZE DEFINES
 #ifdef REMARKABLE
@@ -12074,17 +12355,14 @@ namespace rm2fb {
 /* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/defines.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/rmkit/color.h
-/home/austin/Documents/Git/rmkit/src/rmkit/fb/fbio.h
-/home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h */
+/home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h
+/home/austin/Documents/Git/rmkit/src/rmkit/color.h */
 #ifndef DEFINES_H
 #define DEFINES_H
 
 #include <vector>
 #include <string>
 #include <sstream>
-// #include <linux/mxcfb.h>
-// #include <uapi/linux/mxcfb.h>
 
 // #define PERF_BUILD
 
@@ -12108,8 +12386,24 @@ namespace rm2fb {
 #define ERASER_RUBBER -11
 #define TRANSPARENT -12
 #define MAX_PRESSURE 4096.0
+
 // }}}
 
+// {{{ MXCFB DEFINES
+#define WAVEFORM_MODE_INIT	0x0	/* Screen goes to white (clears) */
+#define WAVEFORM_MODE_DU	0x1	/* Grey->white/grey->black */
+#define WAVEFORM_MODE_GC16	0x2	/* High fidelity (flashing) */
+#define WAVEFORM_MODE_GC4	0x3	/* Lower fidelity */
+#define WAVEFORM_MODE_A2	0x4	/* Fast black/white animation */
+#define WAVEFORM_MODE_DU4 0x7
+#define WAVEFORM_MODE_REAGLD 0x9
+#define WAVEFORM_MODE_AUTO 257
+
+#define TEMP_USE_REMARKABLE_DRAW 0x0018
+#define EPDC_FLAG_EXP1 0x270ce20
+
+#define EPDC_FLAG_USE_DITHERING_ALPHA 0x3ff00000
+// }}}
 
 // {{{ VARIABLE SIZE DEFINES
 #ifdef REMARKABLE
@@ -19133,10 +19427,10 @@ namespace stbtext {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
 #ifndef UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #define UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #include <iostream>
@@ -19746,9 +20040,9 @@ namespace input {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/shared/clockwatch.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #define UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #include <iostream>
@@ -19978,9 +20272,9 @@ namespace input {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI______UI______UI__EVENTS_CPY_H
 #define UI______UI______UI__EVENTS_CPY_H
 #include <memory>
@@ -20267,11 +20561,11 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/device_id.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #define UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #include <iostream>
@@ -20623,17 +20917,19 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/dither.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/vendor/fbink.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/dither.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mxcfb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
+/home/austin/Documents/Git/rmkit/src/vendor/fbink.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mtk-kobo.h */
 #ifndef UI______UI______UI______FB__FB_CPY_H
 #define UI______UI______UI______FB__FB_CPY_H
 #include <memory>
@@ -21324,8 +21620,8 @@ namespace framebuffer {
         std::cerr << "XRES" << ' ' << vinfo.xres << ' ' << "YRES" << ' ' << vinfo.yres << ' ' << "BPP" << ' ' << vinfo.bits_per_pixel << ' ' << "GRAYSCALE" << ' ' << vinfo.grayscale << std::endl; } }
 
     void wait_for_redraw(uint32_t update_marker) {
-      buf_update_marker_data mdata = { update_marker, 0 };
-      ioctl(this->fd, BUF_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
+      mxcfb_update_marker_data mdata = { update_marker, 0 };
+      ioctl(this->fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
 
     tuple<int, int> get_display_size() {
       fb_var_screeninfo vinfo;
@@ -21335,8 +21631,8 @@ namespace framebuffer {
 
     int perform_redraw(bool full_screen=false) {
       auto um = 0;
-      buf_update_data update_data;
-      buf_rect update_rect;
+      mxcfb_update_data update_data;
+      mxcfb_rect update_rect;
 
       if (!full_screen) {
         update_rect.top = dirty_area.y0;
@@ -21362,7 +21658,7 @@ namespace framebuffer {
       if (update_rect.height == 0 || update_rect.width == 0) {
         return um; }
 
-      ioctl(this->fd, BUF_SEND_UPDATE, &update_data);
+      ioctl(this->fd, MXCFB_SEND_UPDATE, &update_data);
       um = update_data.update_marker;
 
       reset_dirty(this->dirty_area);
@@ -21456,7 +21752,7 @@ namespace framebuffer {
 
       #ifdef REMARKABLE
       uint32_t auto_update_mode = AUTO_UPDATE_MODE_AUTOMATIC_MODE;
-      ioctl(this->fd, BUF_SET_AUTO_UPDATE_MODE, (pointer_size) &auto_update_mode);
+      ioctl(this->fd, MXCFB_SET_AUTO_UPDATE_MODE, (pointer_size) &auto_update_mode);
       #endif
       ; }
 
@@ -21597,8 +21893,8 @@ namespace framebuffer {
         std::cerr << "XRES" << ' ' << vinfo.xres << ' ' << "YRES" << ' ' << vinfo.yres << ' ' << "BPP" << ' ' << vinfo.bits_per_pixel << ' ' << "GRAYSCALE" << ' ' << vinfo.grayscale << std::endl; } }
 
     void wait_for_redraw(uint32_t update_marker) {
-      buf_update_marker_data mdata = { update_marker, 0 };
-      ioctl(this->fd, BUF_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
+      hwtcon_update_marker_data mdata = { update_marker, 0 };
+      ioctl(this->fd, HWTCON_WAIT_FOR_UPDATE_COMPLETE, &mdata); }
 
     tuple<int, int> get_display_size() {
       fb_var_screeninfo vinfo;
@@ -21608,8 +21904,8 @@ namespace framebuffer {
 
     int perform_redraw(bool full_screen=false) {
       auto um = 0;
-      buf_update_data_kobo update_data;
-      buf_rect update_rect;
+      hwtcon_update_data update_data;
+      hwtcon_rect update_rect;
 
       if (!full_screen) {
         update_rect.top = dirty_area.y0;
@@ -21634,7 +21930,7 @@ namespace framebuffer {
       if (update_rect.height == 0 || update_rect.width == 0) {
         return um; }
 
-      ioctl(this->fd, BUF_SEND_UPDATE_KOBO, &update_data);
+      ioctl(this->fd, HWTCON_SEND_UPDATE, &update_data);
       um = update_data.update_marker;
 
       reset_dirty(this->dirty_area);
@@ -21849,10 +22145,10 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/style.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/style.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h */
 #ifndef UI______UI______UI__WIDGET_CPY_H
 #define UI______UI______UI__WIDGET_CPY_H
 #include <memory>
@@ -22240,9 +22536,9 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifndef UI______UI__TEXT_CPY_H
 #define UI______UI__TEXT_CPY_H
 #include <tuple>
@@ -22401,8 +22697,8 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI______UI______UI__LAYOUTS_CPY_H
 #define UI______UI______UI__LAYOUTS_CPY_H
@@ -22638,9 +22934,9 @@ namespace ui {
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h */
 #ifndef UI______UI__PIXMAP_CPY_H
 #define UI______UI__PIXMAP_CPY_H
 #include <map>
@@ -22959,10 +23255,10 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h */
 #ifndef UI______UI__BUTTON_CPY_H
 #define UI______UI__BUTTON_CPY_H
 #include <iostream>
@@ -23133,16 +23429,16 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 #ifndef UI______UI__MAIN_LOOP_CPY_H
 #define UI______UI__MAIN_LOOP_CPY_H
 #include <iostream>
@@ -23621,10 +23917,10 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
 /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 #ifndef UI__THUMBNAIL_CPY_H
 #define UI__THUMBNAIL_CPY_H
 #include <vector>
@@ -23677,13 +23973,13 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/lsdir.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/lsdir.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 #ifndef INIT_CPY_H
 #define INIT_CPY_H
 using namespace std;
@@ -23757,10 +24053,10 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI__DIALOG_CPY_H
 #define UI__DIALOG_CPY_H
 #include <vector>
@@ -23931,10 +24227,10 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI__DROPDOWN_CPY_H
 #define UI__DROPDOWN_CPY_H
 #include <memory>
@@ -24192,10 +24488,10 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 #ifndef UI__KEYBOARD_CPY_H
 #define UI__KEYBOARD_CPY_H
 #include <iostream>
@@ -24494,8 +24790,8 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
 #ifndef UI__PAGER_CPY_H
 #define UI__PAGER_CPY_H
 #include <memory>
@@ -24730,21 +25026,21 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
 #ifndef UI__UI_CPY_H
 #define UI__UI_CPY_H
 
@@ -24754,10 +25050,10 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/rmkit.cpp */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
 
 #ifdef RMKIT_BUILD
