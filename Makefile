@@ -13,6 +13,7 @@ obj/sqlite3.c.o: sqlite3.c sqlite3.h
 
 obj/rmkit.h.o: rmkit.h
 	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -xc++ - -c -DSTB_IMAGE_IMPLEMENTATION -DSTB_IMAGE_RESIZE_IMPLEMENTATION -DSTB_IMAGE_WRITE_IMPLEMENTATION -DSTB_TRUETYPE_IMPLEMENTATION -DRMKIT_IMPLEMENTATION -fpermissive -o obj/rmkit.h.o < rmkit.h
+	
 
 clean:
 	rm -f obj/*

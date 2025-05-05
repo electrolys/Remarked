@@ -13,6 +13,7 @@
 
 
 
+
 const int REM_LINK = -5;
 const int MOVE_SEL = -4;
 const int UNDO_SEL = -3;
@@ -91,6 +92,7 @@ public:
 
 
     std::vector<std::string> text_lines;
+
     
     void load(std::string file = "Home",int page = 0){
 
@@ -108,20 +110,22 @@ public:
       }
 
       text_lines.clear();
+                  
       switch (ext_mode) {
         case TXT_EXT:
           if (page > 0) { // I want the first page to always be empty so you can have a convenient place to put links to other parts of the document
             std::string t = "/home/root/" + file.substr(1);
             FILE* f = fopen(t.c_str(),"rb");
-            fseek(f,sizeof(char)*2900*(page-1),SEEK_SET);
+            int numchars = 2900;
+            fseek(f,sizeof(char)*numchars*(page-1),SEEK_SET);
 
             int cnum = 0;
             if (page > 1)
-              for (int c = getc(f); !(c == '\n' || c == EOF || cnum == 100); c = getc(f), cnum++){}
+              for (int c = getc(f); !(c == '\n' || c == EOF || cnum == 1000); c = getc(f), cnum++){}
             
             std::string line = "";
             for (int c = getc(f) ; ; c = getc(f), cnum++ ) {
-              if (c == EOF || cnum == 3000 || (cnum >= 2900 && (c == '\n'))) {
+              if (c == EOF || cnum == numchars+1000 || (cnum >= numchars && (c == '\n'))) {
                 text_lines.push_back(line);
                 break;
               }
@@ -136,9 +140,10 @@ public:
             }
 
             fclose(f);
-          }
-          
-          break;
+          } break;
+        case PDF_EXT: {
+            
+          } break;
       }
       
       unselect();
@@ -710,7 +715,7 @@ public:
         
         switch (ext_mode) {
           case TXT_EXT:{
-            int num = max((w/lines)*2+5,15);
+            int num = max((w/lines)*2+10-lines/10,15);
             int off = 0;            
             // fb->draw_text(0,-gr.y_scroll+y,text_buf,lines);
             for (int i = 0 ; i < text_lines.size(); i++){
