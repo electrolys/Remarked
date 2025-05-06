@@ -97,13 +97,6 @@ public:
     void load(std::string file = "Home",int page = 0){
 
       ext_mode = NO_EXT;
-
-      if (file[0] == '(') {
-        std::size_t end = file.find(")");
-        if (end!=std::string::npos && end+1 < file.length()){
-          file = file.substr(end+1);
-        }
-      }
       
       switch (file[0]) {
         case '@': {
@@ -627,18 +620,26 @@ public:
     
 
     void load_link(file_link* l) {
-      
-      std::size_t i = l->file.find(":");
+
+      std::string lfile = l->file;
+      if (lfile[0] == '(') {
+        std::size_t end = lfile.find(")");
+        if (end!=std::string::npos && end+1 < lfile.length()){
+          lfile = lfile.substr(end+1);
+        }
+      }
+      std::size_t i = lfile.find(":");
 
       std::string file = gr.current_file;
+      
       int page = 0;
       if (i != std::string::npos){
         if (i > 0)
-          file = l->file.substr(0,i);
-        if (i+1 < l->file.length())
-          page = std::stoi(l->file.substr(i+1))-1;
+          file = lfile.substr(0,i);
+        if (i+1 < lfile.length())
+          page = std::stoi(lfile.substr(i+1))-1;
       }else {
-        file = l->file;
+        file = lfile;
         sql_geti(gr.read_d,"sis",page,file.c_str(),-1,"last_page");
       }
       
