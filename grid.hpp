@@ -127,7 +127,18 @@ const int link_size = 32;
 
 
 
+std::string link_render_text(const std::string& text) {
 
+  std::string file = text;
+  if (file[0] == '(') {
+    std::size_t end = file.find(")");
+    if (end!=std::string::npos){
+      file = file.substr(1,end-1);
+    }
+  }
+  return file;
+  
+}
 
 struct grid{
   int row_h;
@@ -362,16 +373,7 @@ struct grid{
       rows.resize(j+1);
     }
 
-    std::string vfile = file;
-    {
-      if (vfile[0] == '(') {
-        std::size_t end = vfile.find(")");
-        if (end!=std::string::npos){
-          vfile = vfile.substr(1,end-1);
-        }
-      }
-    }
-    
+    std::string vfile = link_render_text(file);
     auto s = stbtext::get_text_size(vfile,link_size);
     rows[j].links.push_back(file_link{x,y,s.w,file});
     linksedited = true;
@@ -448,15 +450,8 @@ struct grid{
   }
 
   void draw_link(file_link& l){
-    std::string file = l.file;
-    if (file[0] == '(') {
-      std::size_t end = file.find(")");
-      if (end!=std::string::npos){
-        file = file.substr(1,end-1);
-      }
-    }
 
-    fb->draw_text(l.x,l.y-y_scroll+y,file,link_size);
+    fb->draw_text(l.x,l.y-y_scroll+y,link_render_text(l.file),link_size);
 
   }
   

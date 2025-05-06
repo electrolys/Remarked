@@ -523,7 +523,7 @@ public:
               sel_x += e.x-px;
               sel_y += e.y-py;
               get_fb_area(fb,buf_back,sel_x,sel_y-gr.y_scroll+y,sel_w,sel_h);
-              fb->draw_text(sel_x,sel_y-gr.y_scroll+y,sel_name,link_size);
+              fb->draw_text(sel_x,sel_y-gr.y_scroll+y,link_render_text(sel_name),link_size);
             }
             px = e.x;
             py = e.y;
