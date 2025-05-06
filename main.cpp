@@ -469,6 +469,14 @@ public:
           }
           unselect();
           break;
+
+        case LINK:
+          prev_link = gr.get_link(e.x,e.y+gr.y_scroll-y);
+          if (sel_w) {
+            unselect();
+            rerender();
+          }
+          break;
         case ERASER:
           if ((prev_link = gr.get_link(e.x,e.y+gr.y_scroll-y))) {
             state = REM_LINK;
@@ -526,6 +534,7 @@ public:
         case REM_LINK:
           px = e.x;
           py = e.y;
+          break;
       }
     }
 
@@ -571,10 +580,18 @@ public:
           break;
         case LINK:
           kb.set_text("");
-          kb.show();
-          
           link_x = px;
           link_y = py+gr.y_scroll-y-link_size;
+          {
+            file_link* l = gr.get_link(px,py+gr.y_scroll-y);
+            if (l && l == prev_link){
+              link_x = l->x;
+              link_y = l->y;
+              kb.set_text(l->file);
+              gr.remove_link(px,py+gr.y_scroll-y);
+            }
+          }
+          kb.show();
           ui::MainLoop::refresh();
           state = NUL_ST;
           break;
