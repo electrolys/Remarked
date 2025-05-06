@@ -12355,8 +12355,8 @@ namespace rm2fb {
 /* FILE: /home/austin/Documents/Git/rmkit/src/rmkit/defines.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h
-/home/austin/Documents/Git/rmkit/src/rmkit/color.h */
+/home/austin/Documents/Git/rmkit/src/rmkit/color.h
+/home/austin/Documents/Git/rmkit/src/rmkit/ui/icons.h */
 #ifndef DEFINES_H
 #define DEFINES_H
 
@@ -19252,8 +19252,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_truetype.h */
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_truetype.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 #ifndef UI______UI______UI______FB__STB_TEXT_CPY_H
 #define UI______UI______UI______FB__STB_TEXT_CPY_H
 #include <iostream>
@@ -19427,10 +19427,10 @@ namespace stbtext {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h */
 #ifndef UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #define UI______UI______UI______FB______INPUT__EVENTS_CPY_H
 #include <iostream>
@@ -20039,10 +20039,10 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/shared/clockwatch.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/shared/clockwatch.h */
 #ifndef UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #define UI______UI______UI______FB______INPUT__GESTURES_CPY_H
 #include <iostream>
@@ -20271,10 +20271,10 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h */
 #ifndef UI______UI______UI__EVENTS_CPY_H
 #define UI______UI______UI__EVENTS_CPY_H
 #include <memory>
@@ -20561,11 +20561,11 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/device_id.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb_info.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/device_id.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h */
 #ifndef UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #define UI______UI______UI______FB______INPUT__INPUT_CPY_H
 #include <iostream>
@@ -20917,19 +20917,19 @@ namespace input {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mtk-kobo.h
+/home/austin/Documents/Git/rmkit/src/vendor/fbink.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/dither.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mxcfb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
 /home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_write.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/vendor/fbink.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rotate.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mtk-kobo.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/mxcfb.h */
 #ifndef UI______UI______UI______FB__FB_CPY_H
 #define UI______UI______UI______FB__FB_CPY_H
 #include <memory>
@@ -22145,10 +22145,10 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/style.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
 #ifndef UI______UI______UI__WIDGET_CPY_H
 #define UI______UI______UI__WIDGET_CPY_H
 #include <memory>
@@ -22451,8 +22451,8 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifndef UI______UI______UI__SCENE_CPY_H
 #define UI______UI______UI__SCENE_CPY_H
 #include <memory>
@@ -22537,8 +22537,8 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h */
 #ifndef UI______UI__TEXT_CPY_H
 #define UI______UI__TEXT_CPY_H
 #include <tuple>
@@ -22697,9 +22697,9 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
 
 /* REQUIRES:
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifndef UI______UI______UI__LAYOUTS_CPY_H
 #define UI______UI______UI__LAYOUTS_CPY_H
 #include <memory>
@@ -22932,11 +22932,11 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h */
 #ifndef UI______UI__PIXMAP_CPY_H
 #define UI______UI__PIXMAP_CPY_H
 #include <map>
@@ -23255,10 +23255,10 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/keycodes.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h */
 #ifndef UI______UI__BUTTON_CPY_H
 #define UI______UI__BUTTON_CPY_H
 #include <iostream>
@@ -23429,16 +23429,16 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/gestures.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/timer.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/task_queue.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/defines.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 #ifndef UI______UI__MAIN_LOOP_CPY_H
 #define UI______UI__MAIN_LOOP_CPY_H
 #include <iostream>
@@ -23916,11 +23916,11 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
-/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/image.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image.h
+/home/austin/Documents/Git/rmkit/src/vendor/stb/stb_image_resize.h */
 #ifndef UI__THUMBNAIL_CPY_H
 #define UI__THUMBNAIL_CPY_H
 #include <vector>
@@ -23973,13 +23973,13 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/lsdir.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/machine_id.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/rm2fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 #ifndef INIT_CPY_H
 #define INIT_CPY_H
 using namespace std;
@@ -24055,8 +24055,8 @@ namespace ui {
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h */
 #ifndef UI__DIALOG_CPY_H
 #define UI__DIALOG_CPY_H
 #include <vector>
@@ -24228,9 +24228,9 @@ namespace ui {
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/stb_text.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h */
 #ifndef UI__DROPDOWN_CPY_H
 #define UI__DROPDOWN_CPY_H
 #include <memory>
@@ -24490,8 +24490,8 @@ namespace ui {
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/events.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h */
 #ifndef UI__KEYBOARD_CPY_H
 #define UI__KEYBOARD_CPY_H
 #include <iostream>
@@ -24583,12 +24583,12 @@ namespace ui {
     void number_layout() {
       this->numbers = true;
       this->shifted = false;
-      this->set_layout(         "1234567890",         "-/:;() &@\"",         "  ,.?!'  "       ); };
+      this->set_layout(         "1234567890",         "-/:;() &@\"",         "  ,.?!'"       ); };
 
     void symbol_layout() {
       this->numbers = true;
       this->shifted = true;
-      this->set_layout(         "[]{}#%^*+=",         "_\\|~<> $  ",         "  ,.?!'  "       ); };
+      this->set_layout(         "[]{}#%^*+=",         "_\\|~<> $  ",         "  ,.?!'"       ); };
 
     void set_layout(string row1chars, string row2chars, string row3chars) {
       this->scene = ui::make_scene();
@@ -24790,8 +24790,8 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h */
 #ifndef UI__PAGER_CPY_H
 #define UI__PAGER_CPY_H
 #include <memory>
@@ -25027,20 +25027,20 @@ namespace ui {
 
 /* REQUIRES:
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/button.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/main_loop.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/reflow.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/range_input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/keyboard.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/widget.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dialog.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pager.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/dropdown.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/thumbnail.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/pixmap.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/scene.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/layouts.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/text_input.h */
 #ifndef UI__UI_CPY_H
 #define UI__UI_CPY_H
 
@@ -25050,11 +25050,11 @@ namespace ui {
 /* FILE: /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/rmkit.cpp */
 
 /* REQUIRES:
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/fb/fb.h
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/util/signals.h
 /home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/ui/ui.h
-/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/init.h */
+/home/austin/Documents/Git/rmkit/src/.rmkit.h_cpp/input/input.h */
 
 #ifdef RMKIT_BUILD
 int main() {
