@@ -132,7 +132,7 @@ const int link_size = 32;
 struct grid{
   int row_h;
   int row_w;
-  int h;
+  int w,h;
   int y,y_scroll;
   std::vector<grid_row> rows;
   bool loaded = false, edited = false, linksedited = false;
@@ -248,6 +248,7 @@ struct grid{
     row_h = h/16+1;
     row_w = w/16+1;
     y_scroll = 0;
+    this->w = w;
     this->h = h;
     this->y = y;
     fb = FB;
@@ -360,7 +361,18 @@ struct grid{
     if (j>=(int)rows.size()){
       rows.resize(j+1);
     }
-    auto s = stbtext::get_text_size(file,link_size);
+
+    std::string vfile = file;
+    {
+      if (vfile[0] == '(') {
+        std::size_t end = vfile.find(")");
+        if (end!=std::string::npos){
+          vfile = vfile.substr(1,end-1);
+        }
+      }
+    }
+    
+    auto s = stbtext::get_text_size(vfile,link_size);
     rows[j].links.push_back(file_link{x,y,s.w,file});
     linksedited = true;
   }
@@ -398,19 +410,22 @@ struct grid{
   
 
   void draw(){
-    int j_st = max(y_scroll/row_h,0);
-    int s = (int)rows.size();
-    if (j_st >= s) return;
-    int j_end = min((y_scroll+h)/row_h,s-1);
+
+    redraw(0,y_scroll,w,h);
     
-    for (int j = j_st ; j <= j_end ; j++){
-      for (int i = 0 ; i < 16 ; i++)
-        for (stroke& k : rows[j].vect[i])
-          k.draw(fb,y_scroll,y);
-      for (file_link& l : rows[j].links)
-        if (l.y > y_scroll)
-          fb->draw_text(l.x,l.y-y_scroll+y,l.file,link_size);
-    }
+    // int j_st = max(y_scroll/row_h,0);
+    // int s = (int)rows.size();
+    // if (j_st >= s) return;
+    // int j_end = min((y_scroll+h)/row_h,s-1);
+    // 
+    // for (int j = j_st ; j <= j_end ; j++){
+      // for (int i = 0 ; i < 16 ; i++)
+        // for (stroke& k : rows[j].vect[i])
+          // k.draw(fb,y_scroll,y);
+      // for (file_link& l : rows[j].links)
+        // if (l.y > y_scroll)
+          // fb->draw_text(l.x,l.y-y_scroll+y,l.file,link_size);
+    // }
   }
 
 
@@ -431,19 +446,32 @@ struct grid{
         
     edited = true;
   }
+
+  void draw_link(file_link& l){
+    std::string file = l.file;
+    if (file[0] == '(') {
+      std::size_t end = file.find(")");
+      if (end!=std::string::npos){
+        file = file.substr(1,end-1);
+      }
+    }
+
+    fb->draw_text(l.x,l.y-y_scroll+y,file,link_size);
+
+  }
   
   void redraw(int x,int y,int w,int h){
-    int end_i = (x+w)/row_w;
-    int end_j = (y+h)/row_h;
-    for (int j = y/row_h;j<=end_j;j++){
-      for (int i = x/row_w;i<=end_i;i++)
-        if (j < (int)rows.size())
-          for (stroke& st : rows.at(j).vect[i]){
-            st.draw(fb,y_scroll,this->y);
-          }
+    int end_i = min((x+w)/row_w,15);
+    int end_j = min((y+h)/row_h,rows.size()-1);
+    
+    for (int j = max(y/row_h,0);j<=end_j;j++){
+      for (int i = max(x/row_w,0);i<=end_i;i++)
+        for (stroke& st : rows.at(j).vect[i]){
+          st.draw(fb,y_scroll,this->y);
+        }
       for (file_link& l : rows[j].links)
         if (l.y > y_scroll)
-          fb->draw_text(l.x,l.y-y_scroll+this->y,l.file,link_size);
+          draw_link(l);
     }
   }
 

@@ -97,6 +97,13 @@ public:
     void load(std::string file = "Home",int page = 0){
 
       ext_mode = NO_EXT;
+
+      if (file[0] == '(') {
+        std::size_t end = file.find(")");
+        if (end!=std::string::npos && end+1 < file.length()){
+          file = file.substr(end+1);
+        }
+      }
       
       switch (file[0]) {
         case '@': {
