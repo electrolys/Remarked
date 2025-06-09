@@ -20,3 +20,5 @@ It is not the most feature filled but it is quite useful.
 - Source the toolchain.
 - Call make in the same terminal that you sourced the toolchain.
 
+
+[Support your local chai addict](https://coff.ee/electrolys)
