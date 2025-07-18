@@ -1,12 +1,18 @@
-SHELL := /bin/bash
+SHELL := /bin/sh
 
 CUSTOM_VARS=-DREMARKABLE=1 -s -pthread -lpthread
 
-bin/remarked: obj/sqlite3.c.o obj/main.cpp.o obj/rmkit.h.o
+bin/remarked: obj/sqlite3.c.o obj/main.cpp.o obj/rmkit.h.o obj/grid.cpp.o obj/common.cpp.o
 	$(CXX) -o $@ $^ $(CFLAGS) $(CUSTOM_VARS)
 
 obj/main.cpp.o: main.cpp rmkit.h sqlite3.h common.hpp drawing.hpp grid.hpp assets.h
 	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -o obj/main.cpp.o main.cpp 
+
+obj/grid.cpp.o: grid.cpp grid.hpp common.hpp sqlite3.h
+	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -o obj/grid.cpp.o grid.cpp 
+
+obj/common.cpp.o: common.hpp sqlite3.h
+	$(CXX) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -o obj/common.cpp.o common.cpp 
 
 obj/sqlite3.c.o: sqlite3.c sqlite3.h
 	$(CC) $(CFLAGS) $(CUSTOM_VARS) -O2 -c -DSQLITE_OMIT_LOAD_EXTENSION -o obj/sqlite3.c.o sqlite3.c 

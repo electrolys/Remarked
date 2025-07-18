@@ -212,7 +212,7 @@ inline void my_draw_line_horiz(framebuffer::FB* fb,int x0,int y0,int x1,int y1,i
 
 
 
-void get_fb_area(framebuffer::FB* fb,remarkable_color* out,int x,int y,int w,int h) {
+inline void get_fb_area(framebuffer::FB* fb,remarkable_color* out,int x,int y,int w,int h) {
   for (int i = 0 ; i < w*h ; i++)
     out[i] = WHITE;
   if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
@@ -221,14 +221,14 @@ void get_fb_area(framebuffer::FB* fb,remarkable_color* out,int x,int y,int w,int
       out[w*(i-y)+(j-x)] = fb->fbmem[i*fb->width + j];
 }
 
-remarkable_color* get_fb_area(framebuffer::FB* fb,int x,int y,int w,int h) {
+inline remarkable_color* get_fb_area(framebuffer::FB* fb,int x,int y,int w,int h) {
   remarkable_color* t = new remarkable_color[w*h];
   get_fb_area(fb,t,x,y,w,h);
   return t;
 }
 
 
-void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h) {
+inline void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h) {
   if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
   for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
     for (int j = max(x,0); j < min(x+w,fb->width-1); j++)
@@ -238,7 +238,7 @@ void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,in
   fb->dirty = 1;
 }
 
-void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h,remarkable_color cutout) {
+inline void set_fb_area(framebuffer::FB* fb, remarkable_color* buf,int x,int y,int w,int h,remarkable_color cutout) {
   if (x >= fb->width || y >= fb->height || x+w < 0 || y+h < 0) return;
   for (int i = max(y,0); i < min(y+h,fb->height-1); i++)
     for (int j = max(x,0); j < min(x+w,fb->width-1); j++)

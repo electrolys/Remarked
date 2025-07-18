@@ -93,7 +93,7 @@ public:
 
     std::vector<std::string> text_lines;
 
-    
+
     void load(std::string file = "Home",int page = 0){
 
       ext_mode = NO_EXT;
@@ -113,14 +113,14 @@ public:
                   
       switch (ext_mode) {
         case TXT_EXT:
-          if (page > 0) { // I want the first page to always be empty so you can have a convenient place to put links to other parts of the document
+          if (page >= 0) {
             std::string t = "/home/root/" + file.substr(1);
             FILE* f = fopen(t.c_str(),"rb");
             int numchars = 2900;
             fseek(f,sizeof(char)*numchars*(page-1),SEEK_SET);
 
             int cnum = 0;
-            if (page > 1)
+            if (page > 0)
               for (int c = getc(f); !(c == '\n' || c == EOF || cnum == 1000); c = getc(f), cnum++){}
             
             std::string line = "";
@@ -141,7 +141,8 @@ public:
 
             fclose(f);
           } break;
-        case PDF_EXT: {
+        case PDF_EXT: 
+          if (page >= 0){
             
           } break;
       }
@@ -150,13 +151,14 @@ public:
       pagenum->undraw();
       pagenum->text = file+":"+std::to_string(abs(page)+1);
       pagenum->dirty = 1;
+
       gr.load(file,page);
 
       sql_run(gr.write_d,"sisi",file.c_str(),-1,"last_page",page);
 
       if (!sql_geti(gr.read_d,"sis",lines,file.c_str(),page,"vert_lines")){
-        if (!sql_geti(gr.read_d,"sis",lines,file.c_str(),0,"vert_lines")){
-          sql_run(gr.write_d,"sisi",file.c_str(),0,"vert_lines",lines);
+        if (!sql_geti(gr.read_d,"sis",lines,file.c_str(),-1,"vert_lines")){
+          sql_run(gr.write_d,"sisi",file.c_str(),-1,"vert_lines",lines);
         }
       }
       
@@ -164,10 +166,12 @@ public:
       if (sql_geti(gr.read_d,"sis",b,file.c_str(),-1,"RTL")){
         rtl = b;
       }
+      
     }
 
     
 
+    
 
     
     
@@ -230,7 +234,6 @@ public:
         };
 
         load();
-
 
         sql_geti(gr.read_d,"sis",width,":",0,"pen_width");
         sql_geti(gr.read_d,"sis",eraser_width,":",0,"eraser_width");
@@ -658,6 +661,8 @@ public:
       }else {
         file = lfile;
         sql_geti(gr.read_d,"sis",page,file.c_str(),-1,"last_page");
+
+        
       }
       
       
@@ -722,6 +727,7 @@ public:
             fb->draw_line(0,y+i,w,y+i,1,color::SCALE_16[8]);
           }
         }
+
         gr.draw();
         
         fb->draw_line(0,y,w,y,1,BLACK);
@@ -737,6 +743,7 @@ public:
           fb->draw_text(w/2+w/4+20,y+h-link_size,"[Clear]",link_size);
         }
 
+        
         
         switch (ext_mode) {
           case TXT_EXT:{
@@ -761,9 +768,9 @@ start:
         
         fb->dirty = 1;
         fb->waveform_mode = WAVEFORM_MODE_GC16;
-        int marker = fb->perform_redraw(true);
-        fb->wait_for_redraw(marker);
+        fb->wait_for_redraw(fb->perform_redraw(true));
         dirty = 0;
+        
     }
 };
 
@@ -799,7 +806,7 @@ struct SettingsStuff {
   bool running = true;
   ui::Scene scene;
   ui::Button* rtl;
-  ui::RangeInput* lines;
+  ui::RangeInput* lines, *dlines;
   SettingsStuff(NoteBook* N, ui::Scene main_scene,int w,int h) {
     scene = ui::make_scene();
 
@@ -839,11 +846,12 @@ struct SettingsStuff {
       ui::Button* b = new ui::Button(w-128+85,tool_height*1,43,tool_height,"Def");
       b->mouse.click += [=] (input::SynMotionEvent&) {
         sql_run(N->gr.del_d,"sis",N->gr.current_file.c_str(),N->gr.current_page,"vert_lines");
-        if (!sql_geti(N->gr.read_d,"sis",N->lines,N->gr.current_file.c_str(),0,"vert_lines")){
-          sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),0,"vert_lines",N->lines);
+        if (!sql_geti(N->gr.read_d,"sis",N->lines,N->gr.current_file.c_str(),-1,"vert_lines")){
+          sql_run(N->gr.write_d,"sisi",N->gr.current_file.c_str(),-1,"vert_lines",N->lines);
         }
         
         range->set_value(N->lines/10);
+        range->dirty = 1;
       }; 
       scene->add(b);
 
@@ -880,6 +888,7 @@ struct SettingsStuff {
   }
 
   ui::Button* settings_button(int x,int y,int w,int h,NoteBook* N) {
+
     ui::Button* b = new ui::Button(x,y,w,h,"Settings");
     b->mouse.click += [=] (input::SynMotionEvent&){
 
@@ -891,6 +900,7 @@ struct SettingsStuff {
       N->refresh_screen();
       
     };
+          
     b->text = "";
     b->icon = ICON(assets::fa_Cog_png);
     return b;
@@ -911,7 +921,6 @@ int main(int,char**){
     tuple<int,int> s = fb->get_display_size();
     int w = std::get<0>(s);
     int h = std::get<1>(s);
-
 
     
     NoteBook* N = new NoteBook(w,h-tool_height,tool_height);
@@ -970,14 +979,17 @@ int main(int,char**){
       };
       scene->add( range );
 
+
       scene->add(tool_button(N,range,DRAW,"Pen",ICON(assets::fa_Pen_png)));
       scene->add(tool_button(N,range,ERASER,"Erase",ICON(assets::fa_Erase_png)));
       scene->add(tool_button(N,range,SELECT,"Select",ICON(assets::fa_Select_png)));
       scene->add(tool_button(N,range,LINK,"Link",ICON(assets::fa_Link_png)));
+
     }
 
     SettingsStuff settings(N,scene,w,h);
     scene->add( settings.settings_button(w-32,0,32,tool_height,N));
+        
 
     {
       ui::Button* b = new ui::Button(w-64,0,32,tool_height,"Home");
@@ -1002,10 +1014,16 @@ int main(int,char**){
       };
       scene->add(drop);
     }
+        
     ui::MainLoop::hide_overlay(NULL);
+        
 
     ui::MainLoop::motion_event += PLS_DELEGATE(N->handle_motion_event);
 
+    ui::TimerList::get()->set_interval([=](){
+      
+    },5000);
+    
     ui::MainLoop::key_event += [&](input::SynKeyEvent& e) {
       if (e.is_pressed){
         switch (e.key) {
@@ -1034,6 +1052,7 @@ int main(int,char**){
         e.stop_propagation();
       }
     };
+        
     while (settings.running){
         ui::MainLoop::main();
         ui::MainLoop::redraw();
