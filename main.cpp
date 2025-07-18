@@ -406,11 +406,12 @@ public:
         }
         sel_w = 0;
         selection.clear();
-        dirty = 1;   
+        dirty = 1;
       }
     }
-
+    int to_save = 0;
     void start_stroke(int tool,input::SynMotionEvent& e) {
+      to_save = 2;
       px = py = -1;
       state = tool;
       file_link* l;
@@ -494,6 +495,7 @@ public:
     }
 
     void update_stroke(input::SynMotionEvent& e){
+      to_save = 2;
       switch (state) {
         case DRAW:
           if (px < 0 || lensq(e.x-px,e.y-py) > 1){
@@ -542,6 +544,7 @@ public:
     }
 
     void end_stroke(){
+      to_save = 2;
       switch (state) {
         case DRAW:
           gr.add(prev_stroke);
@@ -1020,8 +1023,10 @@ int main(int,char**){
 
     ui::MainLoop::motion_event += PLS_DELEGATE(N->handle_motion_event);
 
-    ui::TimerList::get()->set_interval([=](){
-      
+    ui::TimerList::get()->set_interval([N](){
+      if (N->to_save > 0)
+        if (--N->to_save == 0)
+          N->gr.save();
     },5000);
     
     ui::MainLoop::key_event += [&](input::SynKeyEvent& e) {
